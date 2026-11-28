@@ -2,6 +2,8 @@
   <img src="icon.svg" alt="Zoomy — Pseudocode that compiles" width="660">
 </p>
 
+<details>
+<summary>###### The Logo above is real Zoomy code — click to copy and run it.</summary>
 
 ```
 (  Zoomy 8 : Pseudocode that compiles to ELF  )
@@ -20,7 +22,7 @@ divide z by 420, and print "Have {z} Good Days"
 Please, we must make sure that z is above zero.
 I would like you to conclude the program with 0
 ```
-
+</details>
 **Contents:** [Introduction](#introduction) · [Running Zoomy](#running-zoomy) · [The language](#the-language) · [Number modes](#number-modes) · [Bits, workers, files and the system](#bits-workers-files-and-the-system) · [Backends](#backends) · [Tools](#tools) · [Tests](#tests) · [Files](#files) · [Example program](#example-program-guesszmy) · [APEX-Z chess engine](#apex-z-chess-engine)
 
 ---
