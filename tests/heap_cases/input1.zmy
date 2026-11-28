@@ -1,0 +1,11 @@
+Let a string be called line
+Let a number be called total
+Let a number be called n
+set total to 0
+read line into line
+while input_ok is 1:
+    print "got: ", line
+    set n to number from trim of line
+    add n to total
+    read line into line
+print "total ", total

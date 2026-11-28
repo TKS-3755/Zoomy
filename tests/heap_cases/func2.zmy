@@ -1,0 +1,21 @@
+define fibs with n:
+    Create an array named f
+    Let a number be called i
+    set f to [0, 1]
+    for i from 2 to n:
+        append (f at (i - 1)) + (f at (i - 2)) to f
+    give back f
+print fibs(15)
+define is_pal with s:
+    give back s is reversed of s
+print is_pal("level")
+print is_pal("hello")
+define count_vowels with s:
+    Let a number be called n
+    Let a string be called c
+    set n to 0
+    for each c in s:
+        if "aeiou" contains c:
+            add 1 to n
+    give back n
+print count_vowels("programming language")

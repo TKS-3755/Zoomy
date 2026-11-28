@@ -1,0 +1,922 @@
+(=============================================================================)
+(      SYZYGY TABLEBASE PROBER  - WDL  - .rtbw AND DTZ  - .rtbz, 3 TO 7 MEN       )
+(  A Zoomy port of the table decoding of Fathom, checked against python-chess.  )
+(  Tables are read from disk on demand  - nothing is loaded up front, headers    )
+(  are kept in a small cache per worker, and every probe opens, reads, closes.  )
+(=============================================================================)
+Create an array named tb_offdiag with 64 slots
+Create an array named tb_triangle with 64 slots
+Create an array named tb_flipdiag with 64 slots
+Create an array named tb_lower with 64 slots
+Create an array named tb_diag with 64 slots
+Create an array named tb_flap with 128 slots
+Create an array named tb_twist with 128 slots
+Create an array named tb_kk with 640 slots
+Create an array named tb_binom with 448 slots
+Create an array named tb_pidx with 288 slots
+Create an array named tb_pff with 24 slots
+Create an array named tb_pfr with 36 slots
+Create an array named tb_p with 8 slots
+Create an array named tb_wdl2map with 8 slots
+Create an array named tb_paflags with 8 slots
+Create an array named tb_cnt with 16 slots
+Create an array named tb_psq with 128 slots
+Create an array named tb_brd with 64 slots
+Create an array named tb_fn with 600 slots
+Create an array named tb_dirs with 520 slots
+Create an array named tb_dstart with 16 slots
+Create a shared array named tb_meta with 262144 slots
+Create a shared array named tb_pool with 12800000 slots
+Create a shared array named tb_ctl with 256 slots
+Let a number be called tb_turn
+Let a number be called tb_wid
+Let a number be called tb_dirn
+Let a number be called tb_min
+Let a number be called tb_fl
+Let a number be called tb_np
+Let a number be called tb_sz0
+Let a number be called tb_sz1
+Let a number be called tb_sz2
+Let a number be called tb_num
+Let a number be called tb_haspawns
+Let a number be called tb_kkenc
+Let a number be called tb_p0
+Let a number be called tb_p1
+Let a number be called tb_on
+Let a number be called tb_maxmen
+Let a number be called tb_probes
+Let a number be called tb_hits
+
+(Little-endian reads from the open file)
+define tb_at8 with foff:
+    Let a number be called b
+    move to byte foff of the file
+    read the next byte into b
+    give back b
+
+define tb_at16 with foff:
+    Let a number be called b0
+    Let a number be called b1
+    move to byte foff of the file
+    read the next byte into b0
+    read the next byte into b1
+    give back b0 + (b1 * 256)
+
+define tb_at32 with foff:
+    Let a number be called b0
+    Let a number be called b1
+    Let a number be called b2
+    Let a number be called b3
+    move to byte foff of the file
+    read the next byte into b0
+    read the next byte into b1
+    read the next byte into b2
+    read the next byte into b3
+    give back b0 + (b1 * 256) + (b2 * 65536) + (b3 * 16777216)
+
+(Room in this worker's slice of the shared pool - returns the first slot)
+define tb_alloc with n:
+    Let a number be called at
+    set at to item ((tb_wid * 2) + 0) of tb_ctl
+    set item ((tb_wid * 2) + 0) of tb_ctl to at + n
+    give back (tb_wid * 200000) + at
+
+(Counts k like pieces on n squares)
+define tb_subfactor with k and n:
+    Let a number be called f
+    Let a number be called l
+    set f to n
+    set l to 1
+    for i from 1 to k - 1:
+        set f to f * (n - i)
+        set l to l * (i + 1)
+    give back f / l
+
+routine tb_init_consts:
+    set item 0 of tb_triangle to 6
+    set item 2 of tb_triangle to 1
+    set item 3 of tb_triangle to 2
+    set item 4 of tb_triangle to 2
+    set item 5 of tb_triangle to 1
+    set item 7 of tb_triangle to 6
+    set item 9 of tb_triangle to 7
+    set item 10 of tb_triangle to 3
+    set item 11 of tb_triangle to 4
+    set item 12 of tb_triangle to 4
+    set item 13 of tb_triangle to 3
+    set item 14 of tb_triangle to 7
+    set item 16 of tb_triangle to 1
+    set item 17 of tb_triangle to 3
+    set item 18 of tb_triangle to 8
+    set item 19 of tb_triangle to 5
+    set item 20 of tb_triangle to 5
+    set item 21 of tb_triangle to 8
+    set item 22 of tb_triangle to 3
+    set item 23 of tb_triangle to 1
+    set item 24 of tb_triangle to 2
+    set item 25 of tb_triangle to 4
+    set item 26 of tb_triangle to 5
+    set item 27 of tb_triangle to 9
+    set item 28 of tb_triangle to 9
+    set item 29 of tb_triangle to 5
+    set item 30 of tb_triangle to 4
+    set item 31 of tb_triangle to 2
+    set item 32 of tb_triangle to 2
+    set item 33 of tb_triangle to 4
+    set item 34 of tb_triangle to 5
+    set item 35 of tb_triangle to 9
+    set item 36 of tb_triangle to 9
+    set item 37 of tb_triangle to 5
+    set item 38 of tb_triangle to 4
+    set item 39 of tb_triangle to 2
+    set item 40 of tb_triangle to 1
+    set item 41 of tb_triangle to 3
+    set item 42 of tb_triangle to 8
+    set item 43 of tb_triangle to 5
+    set item 44 of tb_triangle to 5
+    set item 45 of tb_triangle to 8
+    set item 46 of tb_triangle to 3
+    set item 47 of tb_triangle to 1
+    set item 49 of tb_triangle to 7
+    set item 50 of tb_triangle to 3
+    set item 51 of tb_triangle to 4
+    set item 52 of tb_triangle to 4
+    set item 53 of tb_triangle to 3
+    set item 54 of tb_triangle to 7
+    set item 56 of tb_triangle to 6
+    set item 58 of tb_triangle to 1
+    set item 59 of tb_triangle to 2
+    set item 60 of tb_triangle to 2
+    set item 61 of tb_triangle to 1
+    set item 63 of tb_triangle to 6
+    set item 0 of tb_lower to 28
+    set item 2 of tb_lower to 1
+    set item 3 of tb_lower to 2
+    set item 4 of tb_lower to 3
+    set item 5 of tb_lower to 4
+    set item 6 of tb_lower to 5
+    set item 7 of tb_lower to 6
+    set item 9 of tb_lower to 29
+    set item 10 of tb_lower to 7
+    set item 11 of tb_lower to 8
+    set item 12 of tb_lower to 9
+    set item 13 of tb_lower to 10
+    set item 14 of tb_lower to 11
+    set item 15 of tb_lower to 12
+    set item 16 of tb_lower to 1
+    set item 17 of tb_lower to 7
+    set item 18 of tb_lower to 30
+    set item 19 of tb_lower to 13
+    set item 20 of tb_lower to 14
+    set item 21 of tb_lower to 15
+    set item 22 of tb_lower to 16
+    set item 23 of tb_lower to 17
+    set item 24 of tb_lower to 2
+    set item 25 of tb_lower to 8
+    set item 26 of tb_lower to 13
+    set item 27 of tb_lower to 31
+    set item 28 of tb_lower to 18
+    set item 29 of tb_lower to 19
+    set item 30 of tb_lower to 20
+    set item 31 of tb_lower to 21
+    set item 32 of tb_lower to 3
+    set item 33 of tb_lower to 9
+    set item 34 of tb_lower to 14
+    set item 35 of tb_lower to 18
+    set item 36 of tb_lower to 32
+    set item 37 of tb_lower to 22
+    set item 38 of tb_lower to 23
+    set item 39 of tb_lower to 24
+    set item 40 of tb_lower to 4
+    set item 41 of tb_lower to 10
+    set item 42 of tb_lower to 15
+    set item 43 of tb_lower to 19
+    set item 44 of tb_lower to 22
+    set item 45 of tb_lower to 33
+    set item 46 of tb_lower to 25
+    set item 47 of tb_lower to 26
+    set item 48 of tb_lower to 5
+    set item 49 of tb_lower to 11
+    set item 50 of tb_lower to 16
+    set item 51 of tb_lower to 20
+    set item 52 of tb_lower to 23
+    set item 53 of tb_lower to 25
+    set item 54 of tb_lower to 34
+    set item 55 of tb_lower to 27
+    set item 56 of tb_lower to 6
+    set item 57 of tb_lower to 12
+    set item 58 of tb_lower to 17
+    set item 59 of tb_lower to 21
+    set item 60 of tb_lower to 24
+    set item 61 of tb_lower to 26
+    set item 62 of tb_lower to 27
+    set item 63 of tb_lower to 35
+    set item 7 of tb_diag to 8
+    set item 9 of tb_diag to 1
+    set item 14 of tb_diag to 9
+    set item 18 of tb_diag to 2
+    set item 21 of tb_diag to 10
+    set item 27 of tb_diag to 3
+    set item 28 of tb_diag to 11
+    set item 35 of tb_diag to 12
+    set item 36 of tb_diag to 4
+    set item 42 of tb_diag to 13
+    set item 45 of tb_diag to 5
+    set item 49 of tb_diag to 14
+    set item 54 of tb_diag to 6
+    set item 56 of tb_diag to 15
+    set item 63 of tb_diag to 7
+    set item 9 of tb_flap to 6
+    set item 10 of tb_flap to 12
+    set item 11 of tb_flap to 18
+    set item 12 of tb_flap to 18
+    set item 13 of tb_flap to 12
+    set item 14 of tb_flap to 6
+    set item 16 of tb_flap to 1
+    set item 17 of tb_flap to 7
+    set item 18 of tb_flap to 13
+    set item 19 of tb_flap to 19
+    set item 20 of tb_flap to 19
+    set item 21 of tb_flap to 13
+    set item 22 of tb_flap to 7
+    set item 23 of tb_flap to 1
+    set item 24 of tb_flap to 2
+    set item 25 of tb_flap to 8
+    set item 26 of tb_flap to 14
+    set item 27 of tb_flap to 20
+    set item 28 of tb_flap to 20
+    set item 29 of tb_flap to 14
+    set item 30 of tb_flap to 8
+    set item 31 of tb_flap to 2
+    set item 32 of tb_flap to 3
+    set item 33 of tb_flap to 9
+    set item 34 of tb_flap to 15
+    set item 35 of tb_flap to 21
+    set item 36 of tb_flap to 21
+    set item 37 of tb_flap to 15
+    set item 38 of tb_flap to 9
+    set item 39 of tb_flap to 3
+    set item 40 of tb_flap to 4
+    set item 41 of tb_flap to 10
+    set item 42 of tb_flap to 16
+    set item 43 of tb_flap to 22
+    set item 44 of tb_flap to 22
+    set item 45 of tb_flap to 16
+    set item 46 of tb_flap to 10
+    set item 47 of tb_flap to 4
+    set item 48 of tb_flap to 5
+    set item 49 of tb_flap to 11
+    set item 50 of tb_flap to 17
+    set item 51 of tb_flap to 23
+    set item 52 of tb_flap to 23
+    set item 53 of tb_flap to 17
+    set item 54 of tb_flap to 11
+    set item 55 of tb_flap to 5
+    set item 73 of tb_flap to 1
+    set item 74 of tb_flap to 2
+    set item 75 of tb_flap to 3
+    set item 76 of tb_flap to 3
+    set item 77 of tb_flap to 2
+    set item 78 of tb_flap to 1
+    set item 80 of tb_flap to 4
+    set item 81 of tb_flap to 5
+    set item 82 of tb_flap to 6
+    set item 83 of tb_flap to 7
+    set item 84 of tb_flap to 7
+    set item 85 of tb_flap to 6
+    set item 86 of tb_flap to 5
+    set item 87 of tb_flap to 4
+    set item 88 of tb_flap to 8
+    set item 89 of tb_flap to 9
+    set item 90 of tb_flap to 10
+    set item 91 of tb_flap to 11
+    set item 92 of tb_flap to 11
+    set item 93 of tb_flap to 10
+    set item 94 of tb_flap to 9
+    set item 95 of tb_flap to 8
+    set item 96 of tb_flap to 12
+    set item 97 of tb_flap to 13
+    set item 98 of tb_flap to 14
+    set item 99 of tb_flap to 15
+    set item 100 of tb_flap to 15
+    set item 101 of tb_flap to 14
+    set item 102 of tb_flap to 13
+    set item 103 of tb_flap to 12
+    set item 104 of tb_flap to 16
+    set item 105 of tb_flap to 17
+    set item 106 of tb_flap to 18
+    set item 107 of tb_flap to 19
+    set item 108 of tb_flap to 19
+    set item 109 of tb_flap to 18
+    set item 110 of tb_flap to 17
+    set item 111 of tb_flap to 16
+    set item 112 of tb_flap to 20
+    set item 113 of tb_flap to 21
+    set item 114 of tb_flap to 22
+    set item 115 of tb_flap to 23
+    set item 116 of tb_flap to 23
+    set item 117 of tb_flap to 22
+    set item 118 of tb_flap to 21
+    set item 119 of tb_flap to 20
+    set item 8 of tb_twist to 47
+    set item 9 of tb_twist to 35
+    set item 10 of tb_twist to 23
+    set item 11 of tb_twist to 11
+    set item 12 of tb_twist to 10
+    set item 13 of tb_twist to 22
+    set item 14 of tb_twist to 34
+    set item 15 of tb_twist to 46
+    set item 16 of tb_twist to 45
+    set item 17 of tb_twist to 33
+    set item 18 of tb_twist to 21
+    set item 19 of tb_twist to 9
+    set item 20 of tb_twist to 8
+    set item 21 of tb_twist to 20
+    set item 22 of tb_twist to 32
+    set item 23 of tb_twist to 44
+    set item 24 of tb_twist to 43
+    set item 25 of tb_twist to 31
+    set item 26 of tb_twist to 19
+    set item 27 of tb_twist to 7
+    set item 28 of tb_twist to 6
+    set item 29 of tb_twist to 18
+    set item 30 of tb_twist to 30
+    set item 31 of tb_twist to 42
+    set item 32 of tb_twist to 41
+    set item 33 of tb_twist to 29
+    set item 34 of tb_twist to 17
+    set item 35 of tb_twist to 5
+    set item 36 of tb_twist to 4
+    set item 37 of tb_twist to 16
+    set item 38 of tb_twist to 28
+    set item 39 of tb_twist to 40
+    set item 40 of tb_twist to 39
+    set item 41 of tb_twist to 27
+    set item 42 of tb_twist to 15
+    set item 43 of tb_twist to 3
+    set item 44 of tb_twist to 2
+    set item 45 of tb_twist to 14
+    set item 46 of tb_twist to 26
+    set item 47 of tb_twist to 38
+    set item 48 of tb_twist to 37
+    set item 49 of tb_twist to 25
+    set item 50 of tb_twist to 13
+    set item 51 of tb_twist to 1
+    set item 53 of tb_twist to 12
+    set item 54 of tb_twist to 24
+    set item 55 of tb_twist to 36
+    set item 72 of tb_twist to 47
+    set item 73 of tb_twist to 45
+    set item 74 of tb_twist to 43
+    set item 75 of tb_twist to 41
+    set item 76 of tb_twist to 40
+    set item 77 of tb_twist to 42
+    set item 78 of tb_twist to 44
+    set item 79 of tb_twist to 46
+    set item 80 of tb_twist to 39
+    set item 81 of tb_twist to 37
+    set item 82 of tb_twist to 35
+    set item 83 of tb_twist to 33
+    set item 84 of tb_twist to 32
+    set item 85 of tb_twist to 34
+    set item 86 of tb_twist to 36
+    set item 87 of tb_twist to 38
+    set item 88 of tb_twist to 31
+    set item 89 of tb_twist to 29
+    set item 90 of tb_twist to 27
+    set item 91 of tb_twist to 25
+    set item 92 of tb_twist to 24
+    set item 93 of tb_twist to 26
+    set item 94 of tb_twist to 28
+    set item 95 of tb_twist to 30
+    set item 96 of tb_twist to 23
+    set item 97 of tb_twist to 21
+    set item 98 of tb_twist to 19
+    set item 99 of tb_twist to 17
+    set item 100 of tb_twist to 16
+    set item 101 of tb_twist to 18
+    set item 102 of tb_twist to 20
+    set item 103 of tb_twist to 22
+    set item 104 of tb_twist to 15
+    set item 105 of tb_twist to 13
+    set item 106 of tb_twist to 11
+    set item 107 of tb_twist to 9
+    set item 108 of tb_twist to 8
+    set item 109 of tb_twist to 10
+    set item 110 of tb_twist to 12
+    set item 111 of tb_twist to 14
+    set item 112 of tb_twist to 7
+    set item 113 of tb_twist to 5
+    set item 114 of tb_twist to 3
+    set item 115 of tb_twist to 1
+    set item 117 of tb_twist to 2
+    set item 118 of tb_twist to 4
+    set item 119 of tb_twist to 6
+    set item 3 of tb_kk to 1
+    set item 4 of tb_kk to 2
+    set item 5 of tb_kk to 3
+    set item 6 of tb_kk to 4
+    set item 7 of tb_kk to 5
+    set item 11 of tb_kk to 6
+    set item 12 of tb_kk to 7
+    set item 13 of tb_kk to 8
+    set item 14 of tb_kk to 9
+    set item 15 of tb_kk to 10
+    set item 16 of tb_kk to 11
+    set item 17 of tb_kk to 12
+    set item 18 of tb_kk to 13
+    set item 19 of tb_kk to 14
+    set item 20 of tb_kk to 15
+    set item 21 of tb_kk to 16
+    set item 22 of tb_kk to 17
+    set item 23 of tb_kk to 18
+    set item 24 of tb_kk to 19
+    set item 25 of tb_kk to 20
+    set item 26 of tb_kk to 21
+    set item 27 of tb_kk to 22
+    set item 28 of tb_kk to 23
+    set item 29 of tb_kk to 24
+    set item 30 of tb_kk to 25
+    set item 31 of tb_kk to 26
+    set item 32 of tb_kk to 27
+    set item 33 of tb_kk to 28
+    set item 34 of tb_kk to 29
+    set item 35 of tb_kk to 30
+    set item 36 of tb_kk to 31
+    set item 37 of tb_kk to 32
+    set item 38 of tb_kk to 33
+    set item 39 of tb_kk to 34
+    set item 40 of tb_kk to 35
+    set item 41 of tb_kk to 36
+    set item 42 of tb_kk to 37
+    set item 43 of tb_kk to 38
+    set item 44 of tb_kk to 39
+    set item 45 of tb_kk to 40
+    set item 46 of tb_kk to 41
+    set item 47 of tb_kk to 42
+    set item 48 of tb_kk to 43
+    set item 49 of tb_kk to 44
+    set item 50 of tb_kk to 45
+    set item 51 of tb_kk to 46
+    set item 52 of tb_kk to 47
+    set item 53 of tb_kk to 48
+    set item 54 of tb_kk to 49
+    set item 55 of tb_kk to 50
+    set item 56 of tb_kk to 51
+    set item 57 of tb_kk to 52
+    set item 58 of tb_kk to 53
+    set item 59 of tb_kk to 54
+    set item 60 of tb_kk to 55
+    set item 61 of tb_kk to 56
+    set item 62 of tb_kk to 57
+    set item 63 of tb_kk to 58
+    set item 64 of tb_kk to 59
+    set item 68 of tb_kk to 60
+    set item 69 of tb_kk to 61
+    set item 70 of tb_kk to 62
+    set item 71 of tb_kk to 63
+    set item 72 of tb_kk to 64
+    set item 76 of tb_kk to 65
+    set item 77 of tb_kk to 66
+    set item 78 of tb_kk to 67
+    set item 79 of tb_kk to 68
+    set item 80 of tb_kk to 69
+    set item 81 of tb_kk to 70
+    set item 82 of tb_kk to 71
+    set item 83 of tb_kk to 72
+    set item 84 of tb_kk to 73
+    set item 85 of tb_kk to 74
+    set item 86 of tb_kk to 75
+    set item 87 of tb_kk to 76
+    set item 88 of tb_kk to 77
+    set item 89 of tb_kk to 78
+    set item 90 of tb_kk to 79
+    set item 91 of tb_kk to 80
+    set item 92 of tb_kk to 81
+    set item 93 of tb_kk to 82
+    set item 94 of tb_kk to 83
+    set item 95 of tb_kk to 84
+    set item 96 of tb_kk to 85
+    set item 97 of tb_kk to 86
+    set item 98 of tb_kk to 87
+    set item 99 of tb_kk to 88
+    set item 100 of tb_kk to 89
+    set item 101 of tb_kk to 90
+    set item 102 of tb_kk to 91
+    set item 103 of tb_kk to 92
+    set item 104 of tb_kk to 93
+    set item 105 of tb_kk to 94
+    set item 106 of tb_kk to 95
+    set item 107 of tb_kk to 96
+    set item 108 of tb_kk to 97
+    set item 109 of tb_kk to 98
+    set item 110 of tb_kk to 99
+    set item 111 of tb_kk to 100
+    set item 112 of tb_kk to 101
+    set item 113 of tb_kk to 102
+    set item 114 of tb_kk to 103
+    set item 115 of tb_kk to 104
+    set item 116 of tb_kk to 105
+    set item 117 of tb_kk to 106
+    set item 118 of tb_kk to 107
+    set item 119 of tb_kk to 108
+    set item 120 of tb_kk to 109
+    set item 121 of tb_kk to 110
+    set item 122 of tb_kk to 111
+    set item 123 of tb_kk to 112
+    set item 124 of tb_kk to 113
+    set item 125 of tb_kk to 114
+    set item 126 of tb_kk to 115
+    set item 127 of tb_kk to 116
+    set item 128 of tb_kk to 117
+    set item 129 of tb_kk to 118
+    set item 133 of tb_kk to 119
+    set item 134 of tb_kk to 120
+    set item 135 of tb_kk to 121
+    set item 136 of tb_kk to 122
+    set item 137 of tb_kk to 123
+    set item 141 of tb_kk to 124
+    set item 142 of tb_kk to 125
+    set item 143 of tb_kk to 126
+    set item 144 of tb_kk to 127
+    set item 145 of tb_kk to 128
+    set item 146 of tb_kk to 129
+    set item 147 of tb_kk to 130
+    set item 148 of tb_kk to 131
+    set item 149 of tb_kk to 132
+    set item 150 of tb_kk to 133
+    set item 151 of tb_kk to 134
+    set item 152 of tb_kk to 135
+    set item 153 of tb_kk to 136
+    set item 154 of tb_kk to 137
+    set item 155 of tb_kk to 138
+    set item 156 of tb_kk to 139
+    set item 157 of tb_kk to 140
+    set item 158 of tb_kk to 141
+    set item 159 of tb_kk to 142
+    set item 160 of tb_kk to 143
+    set item 161 of tb_kk to 144
+    set item 162 of tb_kk to 145
+    set item 163 of tb_kk to 146
+    set item 164 of tb_kk to 147
+    set item 165 of tb_kk to 148
+    set item 166 of tb_kk to 149
+    set item 167 of tb_kk to 150
+    set item 168 of tb_kk to 151
+    set item 169 of tb_kk to 152
+    set item 170 of tb_kk to 153
+    set item 171 of tb_kk to 154
+    set item 172 of tb_kk to 155
+    set item 173 of tb_kk to 156
+    set item 174 of tb_kk to 157
+    set item 175 of tb_kk to 158
+    set item 176 of tb_kk to 159
+    set item 177 of tb_kk to 160
+    set item 178 of tb_kk to 161
+    set item 179 of tb_kk to 162
+    set item 180 of tb_kk to 163
+    set item 181 of tb_kk to 164
+    set item 182 of tb_kk to 165
+    set item 183 of tb_kk to 166
+    set item 184 of tb_kk to 167
+    set item 185 of tb_kk to 168
+    set item 186 of tb_kk to 169
+    set item 187 of tb_kk to 170
+    set item 188 of tb_kk to 171
+    set item 189 of tb_kk to 172
+    set item 190 of tb_kk to 173
+    set item 191 of tb_kk to 174
+    set item 192 of tb_kk to 175
+    set item 196 of tb_kk to 176
+    set item 197 of tb_kk to 177
+    set item 198 of tb_kk to 178
+    set item 199 of tb_kk to 179
+    set item 200 of tb_kk to 180
+    set item 204 of tb_kk to 181
+    set item 205 of tb_kk to 182
+    set item 206 of tb_kk to 183
+    set item 207 of tb_kk to 184
+    set item 208 of tb_kk to 185
+    set item 212 of tb_kk to 186
+    set item 213 of tb_kk to 187
+    set item 214 of tb_kk to 188
+    set item 215 of tb_kk to 189
+    set item 216 of tb_kk to 190
+    set item 217 of tb_kk to 191
+    set item 218 of tb_kk to 192
+    set item 219 of tb_kk to 193
+    set item 220 of tb_kk to 194
+    set item 221 of tb_kk to 195
+    set item 222 of tb_kk to 196
+    set item 223 of tb_kk to 197
+    set item 224 of tb_kk to 198
+    set item 225 of tb_kk to 199
+    set item 226 of tb_kk to 200
+    set item 227 of tb_kk to 201
+    set item 228 of tb_kk to 202
+    set item 229 of tb_kk to 203
+    set item 230 of tb_kk to 204
+    set item 231 of tb_kk to 205
+    set item 232 of tb_kk to 206
+    set item 233 of tb_kk to 207
+    set item 234 of tb_kk to 208
+    set item 235 of tb_kk to 209
+    set item 236 of tb_kk to 210
+    set item 237 of tb_kk to 211
+    set item 238 of tb_kk to 212
+    set item 239 of tb_kk to 213
+    set item 240 of tb_kk to 214
+    set item 241 of tb_kk to 215
+    set item 242 of tb_kk to 216
+    set item 243 of tb_kk to 217
+    set item 244 of tb_kk to 218
+    set item 245 of tb_kk to 219
+    set item 246 of tb_kk to 220
+    set item 247 of tb_kk to 221
+    set item 248 of tb_kk to 222
+    set item 249 of tb_kk to 223
+    set item 250 of tb_kk to 224
+    set item 251 of tb_kk to 225
+    set item 252 of tb_kk to 226
+    set item 253 of tb_kk to 227
+    set item 254 of tb_kk to 228
+    set item 255 of tb_kk to 229
+    set item 256 of tb_kk to 230
+    set item 257 of tb_kk to 231
+    set item 261 of tb_kk to 232
+    set item 262 of tb_kk to 233
+    set item 263 of tb_kk to 234
+    set item 264 of tb_kk to 235
+    set item 265 of tb_kk to 236
+    set item 269 of tb_kk to 237
+    set item 270 of tb_kk to 238
+    set item 271 of tb_kk to 239
+    set item 272 of tb_kk to 240
+    set item 273 of tb_kk to 241
+    set item 277 of tb_kk to 242
+    set item 278 of tb_kk to 243
+    set item 279 of tb_kk to 244
+    set item 280 of tb_kk to 245
+    set item 281 of tb_kk to 246
+    set item 282 of tb_kk to 247
+    set item 283 of tb_kk to 248
+    set item 284 of tb_kk to 249
+    set item 285 of tb_kk to 250
+    set item 286 of tb_kk to 251
+    set item 287 of tb_kk to 252
+    set item 288 of tb_kk to 253
+    set item 289 of tb_kk to 254
+    set item 290 of tb_kk to 255
+    set item 291 of tb_kk to 256
+    set item 292 of tb_kk to 257
+    set item 293 of tb_kk to 258
+    set item 294 of tb_kk to 259
+    set item 295 of tb_kk to 260
+    set item 296 of tb_kk to 261
+    set item 297 of tb_kk to 262
+    set item 298 of tb_kk to 263
+    set item 299 of tb_kk to 264
+    set item 300 of tb_kk to 265
+    set item 301 of tb_kk to 266
+    set item 302 of tb_kk to 267
+    set item 303 of tb_kk to 268
+    set item 304 of tb_kk to 269
+    set item 305 of tb_kk to 270
+    set item 306 of tb_kk to 271
+    set item 307 of tb_kk to 272
+    set item 308 of tb_kk to 273
+    set item 309 of tb_kk to 274
+    set item 310 of tb_kk to 275
+    set item 311 of tb_kk to 276
+    set item 312 of tb_kk to 277
+    set item 313 of tb_kk to 278
+    set item 314 of tb_kk to 279
+    set item 315 of tb_kk to 280
+    set item 316 of tb_kk to 281
+    set item 317 of tb_kk to 282
+    set item 318 of tb_kk to 283
+    set item 319 of tb_kk to 284
+    set item 320 of tb_kk to 285
+    set item 321 of tb_kk to 286
+    set item 322 of tb_kk to 287
+    set item 323 of tb_kk to 288
+    set item 324 of tb_kk to 289
+    set item 325 of tb_kk to 290
+    set item 326 of tb_kk to 291
+    set item 327 of tb_kk to 292
+    set item 328 of tb_kk to 293
+    set item 329 of tb_kk to 294
+    set item 333 of tb_kk to 295
+    set item 334 of tb_kk to 296
+    set item 335 of tb_kk to 297
+    set item 336 of tb_kk to 298
+    set item 337 of tb_kk to 299
+    set item 341 of tb_kk to 300
+    set item 342 of tb_kk to 301
+    set item 343 of tb_kk to 302
+    set item 344 of tb_kk to 303
+    set item 345 of tb_kk to 304
+    set item 349 of tb_kk to 305
+    set item 350 of tb_kk to 306
+    set item 351 of tb_kk to 307
+    set item 352 of tb_kk to 308
+    set item 353 of tb_kk to 309
+    set item 354 of tb_kk to 310
+    set item 355 of tb_kk to 311
+    set item 356 of tb_kk to 312
+    set item 357 of tb_kk to 313
+    set item 358 of tb_kk to 314
+    set item 359 of tb_kk to 315
+    set item 360 of tb_kk to 316
+    set item 361 of tb_kk to 317
+    set item 362 of tb_kk to 318
+    set item 363 of tb_kk to 319
+    set item 364 of tb_kk to 320
+    set item 365 of tb_kk to 321
+    set item 366 of tb_kk to 322
+    set item 367 of tb_kk to 323
+    set item 368 of tb_kk to 324
+    set item 369 of tb_kk to 325
+    set item 370 of tb_kk to 326
+    set item 371 of tb_kk to 327
+    set item 372 of tb_kk to 328
+    set item 373 of tb_kk to 329
+    set item 374 of tb_kk to 330
+    set item 375 of tb_kk to 331
+    set item 376 of tb_kk to 332
+    set item 377 of tb_kk to 333
+    set item 378 of tb_kk to 334
+    set item 379 of tb_kk to 335
+    set item 380 of tb_kk to 336
+    set item 381 of tb_kk to 337
+    set item 382 of tb_kk to 338
+    set item 383 of tb_kk to 339
+    set item 386 of tb_kk to 340
+    set item 387 of tb_kk to 341
+    set item 388 of tb_kk to 342
+    set item 389 of tb_kk to 343
+    set item 390 of tb_kk to 344
+    set item 391 of tb_kk to 345
+    set item 394 of tb_kk to 346
+    set item 395 of tb_kk to 347
+    set item 396 of tb_kk to 348
+    set item 397 of tb_kk to 349
+    set item 398 of tb_kk to 350
+    set item 399 of tb_kk to 351
+    set item 402 of tb_kk to 442
+    set item 403 of tb_kk to 352
+    set item 404 of tb_kk to 353
+    set item 405 of tb_kk to 354
+    set item 406 of tb_kk to 355
+    set item 407 of tb_kk to 356
+    set item 411 of tb_kk to 443
+    set item 412 of tb_kk to 357
+    set item 413 of tb_kk to 358
+    set item 414 of tb_kk to 359
+    set item 415 of tb_kk to 360
+    set item 420 of tb_kk to 444
+    set item 421 of tb_kk to 361
+    set item 422 of tb_kk to 362
+    set item 423 of tb_kk to 363
+    set item 429 of tb_kk to 445
+    set item 430 of tb_kk to 364
+    set item 431 of tb_kk to 365
+    set item 438 of tb_kk to 446
+    set item 439 of tb_kk to 366
+    set item 447 of tb_kk to 447
+    set item 451 of tb_kk to 367
+    set item 452 of tb_kk to 368
+    set item 453 of tb_kk to 369
+    set item 454 of tb_kk to 370
+    set item 455 of tb_kk to 371
+    set item 459 of tb_kk to 372
+    set item 460 of tb_kk to 373
+    set item 461 of tb_kk to 374
+    set item 462 of tb_kk to 375
+    set item 463 of tb_kk to 376
+    set item 467 of tb_kk to 377
+    set item 468 of tb_kk to 378
+    set item 469 of tb_kk to 379
+    set item 470 of tb_kk to 380
+    set item 471 of tb_kk to 381
+    set item 475 of tb_kk to 448
+    set item 476 of tb_kk to 382
+    set item 477 of tb_kk to 383
+    set item 478 of tb_kk to 384
+    set item 479 of tb_kk to 385
+    set item 484 of tb_kk to 449
+    set item 485 of tb_kk to 386
+    set item 486 of tb_kk to 387
+    set item 487 of tb_kk to 388
+    set item 493 of tb_kk to 450
+    set item 494 of tb_kk to 389
+    set item 495 of tb_kk to 390
+    set item 502 of tb_kk to 451
+    set item 503 of tb_kk to 391
+    set item 511 of tb_kk to 452
+    set item 512 of tb_kk to 453
+    set item 513 of tb_kk to 392
+    set item 514 of tb_kk to 393
+    set item 515 of tb_kk to 394
+    set item 516 of tb_kk to 395
+    set item 517 of tb_kk to 396
+    set item 518 of tb_kk to 397
+    set item 519 of tb_kk to 398
+    set item 524 of tb_kk to 399
+    set item 525 of tb_kk to 400
+    set item 526 of tb_kk to 401
+    set item 527 of tb_kk to 402
+    set item 532 of tb_kk to 403
+    set item 533 of tb_kk to 404
+    set item 534 of tb_kk to 405
+    set item 535 of tb_kk to 406
+    set item 540 of tb_kk to 407
+    set item 541 of tb_kk to 408
+    set item 542 of tb_kk to 409
+    set item 543 of tb_kk to 410
+    set item 548 of tb_kk to 454
+    set item 549 of tb_kk to 411
+    set item 550 of tb_kk to 412
+    set item 551 of tb_kk to 413
+    set item 557 of tb_kk to 455
+    set item 558 of tb_kk to 414
+    set item 559 of tb_kk to 415
+    set item 566 of tb_kk to 456
+    set item 567 of tb_kk to 416
+    set item 575 of tb_kk to 457
+    set item 576 of tb_kk to 458
+    set item 577 of tb_kk to 417
+    set item 578 of tb_kk to 418
+    set item 579 of tb_kk to 419
+    set item 580 of tb_kk to 420
+    set item 581 of tb_kk to 421
+    set item 582 of tb_kk to 422
+    set item 583 of tb_kk to 423
+    set item 585 of tb_kk to 459
+    set item 586 of tb_kk to 424
+    set item 587 of tb_kk to 425
+    set item 588 of tb_kk to 426
+    set item 589 of tb_kk to 427
+    set item 590 of tb_kk to 428
+    set item 591 of tb_kk to 429
+    set item 597 of tb_kk to 430
+    set item 598 of tb_kk to 431
+    set item 599 of tb_kk to 432
+    set item 605 of tb_kk to 433
+    set item 606 of tb_kk to 434
+    set item 607 of tb_kk to 435
+    set item 613 of tb_kk to 436
+    set item 614 of tb_kk to 437
+    set item 615 of tb_kk to 438
+    set item 621 of tb_kk to 460
+    set item 622 of tb_kk to 439
+    set item 623 of tb_kk to 440
+    set item 630 of tb_kk to 461
+    set item 631 of tb_kk to 441
+    set item 639 of tb_kk to 462
+
+routine tb_init_tables:
+    run tb_init_consts
+    Let a number be called f
+    Let a number be called l
+    Let a number be called s
+    set item 0 of tb_wdl2map to 1
+    set item 1 of tb_wdl2map to 3
+    set item 2 of tb_wdl2map to 0
+    set item 3 of tb_wdl2map to 2
+    set item 4 of tb_wdl2map to 0
+    set item 0 of tb_paflags to 8
+    set item 4 of tb_paflags to 4
+    set tb_min to 1
+    shift tb_min left by 63 bits
+    for r from 0 to 7:
+        for c from 0 to 7:
+            set item ((r * 8) + c) of tb_flipdiag to (c * 8) + r
+            if r is greater than c:
+                set item ((r * 8) + c) of tb_offdiag to 1
+            if r is less than c:
+                set item ((r * 8) + c) of tb_offdiag to -1
+    for k from 0 to 6:
+        for n from 0 to 63:
+            set f to 1
+            set l to 1
+            for j from 0 to k - 1:
+                set f to f * (n - j)
+                set l to l * (j + 1)
+            set item ((k * 64) + n) of tb_binom to f / l
+    for i from 0 to 5:
+        set s to 0
+        for j from 0 to 23:
+            set item ((i * 24) + j) of tb_pidx to s
+            add item ((i * 64) + item (((1 + (j mod 6)) * 8) + (j / 6)) of tb_twist) of tb_binom to s
+            if (j + 1) mod 6 is 0:
+                set item ((i * 4) + (j / 6)) of tb_pff to s
+                set s to 0
+    for i from 0 to 5:
+        set s to 0
+        for j from 0 to 23:
+            set item (144 + (i * 24) + j) of tb_pidx to s
+            add item ((i * 64) + item (64 + ((1 + (j / 4)) * 8) + (j mod 4)) of tb_twist) of tb_binom to s
+            if (j + 1) mod 4 is 0:
+                set item ((i * 6) + (j / 4)) of tb_pfr to s
+                set s to 0

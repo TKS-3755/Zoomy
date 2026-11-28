@@ -1,0 +1,10 @@
+(FizzBuzz, the readable way.)
+for number from 1 to 15:
+    if number mod 15 is 0:
+        print "FizzBuzz"
+    else if number mod 3 is 0:
+        print "Fizz"
+    else if number mod 5 is 0:
+        print "Buzz"
+    else:
+        print number

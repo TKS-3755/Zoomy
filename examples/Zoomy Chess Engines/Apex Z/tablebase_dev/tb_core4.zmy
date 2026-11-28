@@ -1,0 +1,213 @@
+
+(Port of encode - the index of the position held in tb_p, for the piece order at eb)
+define tb_encode with eb and enc:
+    Let a number be called n
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called idx
+    Let a number be called s1
+    Let a number be called s2
+    Let a number be called tmp
+    Let a number be called t
+    Let a number be called s
+    Let a number be called sq
+    Let a number be called skips
+    Let a number be called f0
+    Let a number be called twb
+    set n to tb_num
+    set f0 to item (eb + 14) of tb_pool
+    if (item 0 of tb_p / 4) mod 2 is 1:
+        for i from 0 to n - 1:
+            bitwise xor item i of tb_p with 7
+    if enc is 0:
+        if (item 0 of tb_p / 32) mod 2 is 1:
+            for i from 0 to n - 1:
+                bitwise xor item i of tb_p with 56
+        for i from 0 to n - 1:
+            if item (item i of tb_p) of tb_offdiag is not 0:
+                if item (item i of tb_p) of tb_offdiag is greater than 0:
+                    set tmp to 3
+                    if tb_kkenc is 1:
+                        set tmp to 2
+                    if i is less than tmp:
+                        for j from 0 to n - 1:
+                            set item j of tb_p to item (item j of tb_p) of tb_flipdiag
+                stop
+        if tb_kkenc is 1:
+            set idx to item ((item (item 0 of tb_p) of tb_triangle * 64) + item 1 of tb_p) of tb_kk - 1
+            set k to 2
+        else:
+            set s1 to 0
+            if item 1 of tb_p is greater than item 0 of tb_p:
+                set s1 to 1
+            set s2 to 0
+            if item 2 of tb_p is greater than item 0 of tb_p:
+                add 1 to s2
+            if item 2 of tb_p is greater than item 1 of tb_p:
+                add 1 to s2
+            if item (item 0 of tb_p) of tb_offdiag is not 0:
+                set idx to (item (item 0 of tb_p) of tb_triangle * 63 * 62) + ((item 1 of tb_p - s1) * 62) + (item 2 of tb_p - s2)
+            else if item (item 1 of tb_p) of tb_offdiag is not 0:
+                set idx to (6 * 63 * 62) + (item (item 0 of tb_p) of tb_diag * 28 * 62) + (item (item 1 of tb_p) of tb_lower * 62) + item 2 of tb_p - s2
+            else if item (item 2 of tb_p) of tb_offdiag is not 0:
+                set idx to (6 * 63 * 62) + (4 * 28 * 62) + (item (item 0 of tb_p) of tb_diag * 7 * 28) + ((item (item 1 of tb_p) of tb_diag - s1) * 28) + item (item 2 of tb_p) of tb_lower
+            else:
+                set idx to (6 * 63 * 62) + (4 * 28 * 62) + (4 * 7 * 28) + (item (item 0 of tb_p) of tb_diag * 7 * 6) + ((item (item 1 of tb_p) of tb_diag - s1) * 6) + (item (item 2 of tb_p) of tb_diag - s2)
+            set k to 3
+        set idx to idx * f0
+    else:
+        for i from 1 to tb_p0 - 1:
+            for j from i + 1 to tb_p0 - 1:
+                if item (item i of tb_p) of tb_twist is less than item (item j of tb_p) of tb_twist:
+                    set tmp to item i of tb_p
+                    set item i of tb_p to item j of tb_p
+                    set item j of tb_p to tmp
+        set k to tb_p0
+        set idx to item (((k - 1) * 24) + item (item 0 of tb_p) of tb_flap) of tb_pidx
+        for i from 1 to k - 1:
+            add item (((k - i) * 64) + item (item i of tb_p) of tb_twist) of tb_binom to idx
+        set idx to idx * f0
+        if tb_p1 is greater than 0:
+            set t to k + tb_p1
+            for i from k to t - 1:
+                for j from i + 1 to t - 1:
+                    if item i of tb_p is greater than item j of tb_p:
+                        set tmp to item i of tb_p
+                        set item i of tb_p to item j of tb_p
+                        set item j of tb_p to tmp
+            set s to 0
+            for i from k to t - 1:
+                set sq to item i of tb_p
+                set skips to 0
+                for j from 0 to k - 1:
+                    if sq is greater than item j of tb_p:
+                        add 1 to skips
+                add item ((((i - k) + 1) * 64) + ((sq - skips) - 8)) of tb_binom to s
+            add s * item (eb + 14 + k) of tb_pool to idx
+            set k to t
+    while k is less than n:
+        set t to k + item (eb + 7 + k) of tb_pool
+        for i from k to t - 1:
+            for j from i + 1 to t - 1:
+                if item i of tb_p is greater than item j of tb_p:
+                    set tmp to item i of tb_p
+                    set item i of tb_p to item j of tb_p
+                    set item j of tb_p to tmp
+        set s to 0
+        for i from k to t - 1:
+            set sq to item i of tb_p
+            set skips to 0
+            for j from 0 to k - 1:
+                if sq is greater than item j of tb_p:
+                    add 1 to skips
+            add item ((((i - k) + 1) * 64) + (sq - skips)) of tb_binom to s
+        add s * item (eb + 14 + k) of tb_pool to idx
+        set k to t
+    give back idx
+
+(Port of decompress_pairs - the two bytes stored for index idx, as w0 + 256 * w1)
+define tb_decode with pr and idx:
+    Let a number be called ib
+    Let a number be called main
+    Let a number be called lit
+    Let a number be called block
+    Let a number be called pw
+    Let a number be called low
+    Let a number be called itab
+    Let a number be called stab
+    Let a number be called mlen
+    Let a number be called l
+    Let a number be called code
+    Let a number be called cb
+    Let a number be called bitcnt
+    Let a number be called sym
+    Let a number be called slen
+    Let a number be called spat
+    Let a number be called x
+    Let a number be called tmp
+    Let a number be called w
+    Let a number be called s1
+    Let a number be called b0
+    Let a number be called b1
+    Let a number be called b2
+    Let a number be called b3
+    Let a number be called ptr
+    Let a number be called going
+    set ib to item (pr + 1) of tb_pool
+    if ib is 0:
+        give back item (pr + 6) of tb_pool
+    if item (pr + 0) of tb_pool is 0:
+        call tb_pair_prep with pr
+    set itab to item (pr + 8) of tb_pool
+    set stab to item (pr + 9) of tb_pool
+    set slen to item (pr + 12) of tb_pool
+    set spat to item (pr + 13) of tb_pool
+    set mlen to item (pr + 3) of tb_pool
+    set main to idx
+    shift main right by ib bits
+    set pw to 1
+    shift pw left by ib bits
+    set low to idx
+    set tmp to pw - 1
+    bitwise and low with tmp
+    set lit to low - (pw / 2)
+    set tmp to itab + (6 * main)
+    set block to tb_at32(tmp)
+    add tb_at16(tmp + 4) to lit
+    if lit is less than 0:
+        while lit is less than 0:
+            subtract 1 from block
+            add tb_at16(stab + (2 * block)) + 1 to lit
+    else:
+        set x to tb_at16(stab + (2 * block))
+        while lit is greater than x:
+            subtract x + 1 from lit
+            add 1 to block
+            set x to tb_at16(stab + (2 * block))
+    set ptr to item (pr + 10) of tb_pool
+    set x to block
+    shift x left by item (pr + 2) of tb_pool bits
+    add x to ptr
+    move to byte ptr of the file
+    set code to 0
+    for i from 1 to 8:
+        read the next byte into b0
+        set code to (code * 256) + b0
+    set bitcnt to 0
+    set going to 1
+    while going is 1:
+        set l to mlen
+        set cb to code
+        bitwise xor cb with tb_min
+        while cb is less than item (pr + 62 + (l - mlen)) of tb_pool:
+            add 1 to l
+        set x to cb - item (pr + 62 + (l - mlen)) of tb_pool
+        set tmp to 64 - l
+        shift x right by tmp bits
+        set sym to item (pr + 14 + (l - mlen)) of tb_pool + x
+        if lit is less than item (slen + sym) of tb_pool:
+            set going to 0
+        else:
+            subtract item (slen + sym) of tb_pool from lit
+            shift code left by l bits
+            add l to bitcnt
+            if bitcnt is at least 32:
+                subtract 32 from bitcnt
+                read the next byte into b0
+                read the next byte into b1
+                read the next byte into b2
+                read the next byte into b3
+                set x to (((((b0 * 256) + b1) * 256) + b2) * 256) + b3
+                shift x left by bitcnt bits
+                bitwise or code with x
+    while item (slen + sym) of tb_pool is not 1:
+        set w to item (spat + sym) of tb_pool
+        set s1 to (((w / 256) mod 16) * 256) + (w mod 256)
+        if lit is less than item (slen + s1) of tb_pool:
+            set sym to s1
+        else:
+            subtract item (slen + s1) of tb_pool from lit
+            set sym to ((w / 65536) * 16) + (((w / 256) mod 256) / 16)
+    set w to item (spat + sym) of tb_pool
+    give back (w mod 256) + (((w / 256) mod 256) * 256)

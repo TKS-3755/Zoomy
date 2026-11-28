@@ -1,0 +1,44 @@
+include nocalc's core
+
+routine dot_product:
+    set dot_result to 0.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called v1
+        load from arr at index i into v1
+        Let a number be called v2
+        load from arr2 at index i into v2
+        Structurally:
+            set dot_result to dot_result + v1 * v2
+        add 1.0 to i
+
+routine vector_norm:
+    Let a number be called norm_sum
+    set norm_sum to 0.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        Structurally:
+            set norm_sum to norm_sum + temp_val ^ 2
+        add 1.0 to i
+    Structurally:
+        set norm_result to the square root of norm_sum
+
+routine euclidean_distance:
+    Let a number be called dist_sum
+    set dist_sum to 0.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp1
+        load from arr at index i into temp1
+        Let a number be called temp2
+        load from arr2 at index i into temp2
+        Structurally:
+            set dist_sum to dist_sum + (temp1 - temp2) ^ 2
+        add 1.0 to i
+    Structurally:
+        set dist_result to the square root of dist_sum

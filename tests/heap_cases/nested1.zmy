@@ -1,0 +1,16 @@
+Let a table be called counts
+Create an array named words
+Let a string be called w
+set counts to empty table
+set words to split "the cat and the hat and the bat" by " "
+for each w in words:
+    if counts contains w:
+        add 1 to counts at w
+    else:
+        put 1 in counts at w
+Create an array named ks
+set ks to keys of counts
+sort ks
+for each w in ks:
+    print w, ": ", counts at w
+print "distinct: ", length of ks

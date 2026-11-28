@@ -1,0 +1,200 @@
+(Wildlife Simulator: Rabbits vs. Lions in Zoomy)
+(Simulates daily survival, hunting, reproduction, weather events, and extinction.)
+
+(--- Helper Functions to Spawn Animals ---)
+
+(Variables shared by the whole program)
+Let a value be called a_
+
+define make_lion with id and energy:
+    give back table with "name" as "Lion_{id}" and "type" as "lion" and "energy" as energy
+
+define make_rabbit with id and energy:
+    give back table with "name" as "Rabbit_{id}" and "type" as "rabbit" and "energy" as energy
+
+define get_living_rabbits with animals:
+    Create an array named list_out
+    set list_out to empty list
+    for each a_ in animals:
+        if a_ at "type" is "rabbit" and a_ at "energy" is greater than 0:
+            append a_ to list_out
+    give back list_out
+
+define count_type with animals and target_type:
+    Let a number be called total
+    set total to 0
+    for each a_ in animals:
+        if a_ at "type" is target_type and a_ at "energy" is greater than 0:
+            add 1 to total
+    give back total
+
+(--- Simulation Setup ---)
+
+Create an array named forest
+set forest to empty list
+Let a number be called next_id
+set next_id to 100
+
+(Spawn 1 to 3 Lions with 15 to 25 energy)
+Let a value be called lion_count
+set lion_count to random between 1 and 3
+for i from 1 to lion_count:
+    add 1 to next_id
+    Let a value be called lion_energy
+    set lion_energy to random between 15 and 25
+    append make_lion(next_id, lion_energy) to forest
+
+(Spawn 3 to 6 Rabbits with 10 energy)
+Let a value be called rabbit_count
+set rabbit_count to random between 3 and 6
+for i from 1 to rabbit_count:
+    add 1 to next_id
+    append make_rabbit(next_id, 10) to forest
+
+print "=========================================="
+print "        WELCOME TO THE WILDLIFE SIMULATOR"
+print "=========================================="
+print "Initial Forest Census:"
+Let a value be called a_name
+Let a value be called a_energy
+for each a_ in forest:
+    set a_name to a_ at "name"
+    set a_energy to a_ at "energy"
+    print " - {a_name} (Energy: {a_energy})"
+print ""
+
+(Ask how many days to simulate, defaulting to 5)
+Let a number be called total_days
+set total_days to 5
+Let a string be called input_days
+set input_days to ask "How many days should the simulation run? (press Enter for 5): "
+if trim of input_days is not "":
+    try:
+        Let a number be called parsed
+        set parsed to number from trim of input_days
+        check that parsed is greater than 0
+        set total_days to parsed
+    if it fails:
+        print "Using default of 5 days."
+print ""
+
+(--- Main Simulation Loop ---)
+
+for day from 1 to total_days:
+    print "------------------------------------------"
+    print "               DAY {day}"
+    print "------------------------------------------"
+
+    (Weather event: 20% chance of rain restoring energy)
+    if random number is less than 0.2:
+        print "Weather: A gentle rain falls across the forest! Energy restored."
+        for each a_ in forest:
+            if a_ at "energy" is greater than 0:
+                Let a value be called rain_gain
+                set rain_gain to random between 1 and 5
+                add rain_gain to a_ at "energy"
+
+    Create an array named babies
+    set babies to empty list
+
+    (Animal Actions)
+    for each animal in forest:
+        set a_name to animal at "name"
+        Let a value be called a_type
+        set a_type to animal at "type"
+        set a_energy to animal at "energy"
+
+        (Only living animals can act)
+        if a_energy is greater than 0:
+            Let a value be called new_energy
+            Let a value be called loss
+            if a_type is "lion":
+                Let a value be called rabbits
+                set rabbits to call get_living_rabbits with forest
+
+                if length of rabbits is greater than 0:
+                    (Choose a target rabbit at random)
+                    Let a number be called max_idx
+                    set max_idx to (length of rabbits) - 1
+                    Let a value be called r_idx
+                    set r_idx to random between 0 and max_idx
+                    Let a value be called target
+                    set target to rabbits[r_idx]
+                    Let a value be called t_name
+                    set t_name to target at "name"
+                    Let a value be called t_energy
+                    set t_energy to target at "energy"
+
+                    (50% chance to hunt successfully)
+                    if random number is less than 0.5:
+                        add t_energy to animal at "energy"
+                        set target at "energy" to 0    (Mark rabbit as consumed)
+                        set new_energy to animal at "energy"
+                        print "{a_name} successfully hunted {t_name}! (Energy: {new_energy})"
+                    else:
+                        set loss to random between 1 and 5
+                        subtract loss from animal at "energy"
+                        set new_energy to animal at "energy"
+                        print "{a_name} failed to catch {t_name} and moved. Lost {loss} energy (Now: {new_energy})"
+                else:
+                    (No rabbits to hunt, lion searches and moves)
+                    set loss to random between 1 and 5
+                    subtract loss from animal at "energy"
+                    set new_energy to animal at "energy"
+                    print "{a_name} found no prey and moved. Lost {loss} energy (Now: {new_energy})"
+
+            else if a_type is "rabbit":
+                (Rabbit moves and burns energy)
+                set loss to random between 1 and 5
+                subtract loss from animal at "energy"
+                set new_energy to animal at "energy"
+                print "{a_name} hopped through the brush. Lost {loss} energy (Now: {new_energy})"
+
+                (30% chance to reproduce if still alive)
+                if animal at "energy" is greater than 0 and random number is less than 0.3:
+                    add 1 to next_id
+                    Let a value be called baby
+                    set baby to make_rabbit(next_id, 10)
+                    append baby to babies
+                    Let a value be called b_name
+                    set b_name to baby at "name"
+                    print "{a_name} gave birth to {b_name}!"
+
+    (Add newly born babies to the forest)
+    for each b in babies:
+        append b to forest
+
+    (Natural Selection: purge animals that starved or were hunted)
+    Create an array named survivors
+    set survivors to empty list
+    for each a_ in forest:
+        if a_ at "energy" is greater than 0:
+            append a_ to survivors
+    set forest to survivors
+
+    (End of Day Census)
+    Let a value be called lions_left
+    set lions_left to call count_type with forest and "lion"
+    Let a value be called rabbits_left
+    set rabbits_left to call count_type with forest and "rabbit"
+    print ""
+    print "End of Day {day} Status:"
+    print "Remaining: {lions_left} Lions, {rabbits_left} Rabbits."
+    print ""
+
+    (Check for Ecosystem Collapse)
+    if rabbits_left is 0:
+        print "=========================================="
+        print "All rabbits have perished! The lions will starve."
+        print "Simulation ends."
+        print "=========================================="
+        stop
+
+    if lions_left is 0:
+        print "=========================================="
+        print "All lions have died out! The rabbits inherit the forest."
+        print "Simulation ends."
+        print "=========================================="
+        stop
+
+print "Simulation finished."

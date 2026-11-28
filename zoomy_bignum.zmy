@@ -1,0 +1,897 @@
+(Zoomy 7 - the Big Numbers library, written in Zoomy.)
+(A Big Number is 1024 bits of two's complement, kept as 32 limbs of 32 bits, lowest limb first, one limb per slot of the array bn.)
+(Every function takes the slot number where a value starts, so values never need to be copied around.)
+(The compiler lowers Big Numbers programs onto these functions for the machine-code and WebAssembly backends. It runs in unsigned 64-bit mode.)
+(Slots 0..319 belong to the library: 0 = result of a function call, 32/64/96/128/160/192 = scratch values, 224 = shift scratch, 256..299 = decimal chunks.)
+
+Create an array named bn with 4096 slots
+
+(---- basic moves ----)
+define bn_zero with pd:
+    Let a number be called i
+    Let a number be called j
+    for i from 0 to 31:
+        set j to pd + i
+        set item j of bn to 0
+
+define bn_copy with pd and ps:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called x
+    for i from 0 to 31:
+        set j to ps + i
+        set k to pd + i
+        set x to item j of bn
+        set item k of bn to x
+
+define bn_small with pd and v:
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called j
+    set lo to v
+    bitwise and lo with 4294967295
+    set hi to v
+    shift hi right by 32 bits
+    call bn_zero with pd
+    set item pd of bn to lo
+    set j to pd + 1
+    set item j of bn to hi
+
+define bn_isneg with pa:
+    Let a number be called j
+    Let a number be called x
+    set j to pa + 31
+    set x to item j of bn
+    shift x right by 31 bits
+    give back x
+
+define bn_iszero with pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        if x is above 0:
+            give back 0
+    give back 1
+
+(the low 64 bits as an ordinary number)
+define bn_low with pa:
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called j
+    set lo to item pa of bn
+    set j to pa + 1
+    set hi to item j of bn
+    shift hi left by 32 bits
+    bitwise or lo with hi
+    give back lo
+
+(a slot index or a count: the value when it is 0 .. 2^62-1, else 2^62 (which no array has))
+define bn_idx with pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called hi
+    Let a number be called lo
+    set j to pa + 31
+    set x to item j of bn
+    shift x right by 31 bits
+    if x is above 0:
+        give back 4611686018427387904
+    for i from 2 to 31:
+        set j to pa + i
+        set x to item j of bn
+        if x is above 0:
+            give back 4611686018427387904
+    set j to pa + 1
+    set hi to item j of bn
+    if hi is above 1073741823:
+        give back 4611686018427387904
+    set lo to item pa of bn
+    shift hi left by 32 bits
+    bitwise or lo with hi
+    give back lo
+
+(---- add, subtract, negate ----)
+define bn_add with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called carry
+    Let a number be called t
+    Let a number be called x
+    Let a number be called y
+    set carry to 0
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        set t to x + y
+        add carry to t
+        set carry to t
+        shift carry right by 32 bits
+        bitwise and t with 4294967295
+        set j to pd + i
+        set item j of bn to t
+
+define bn_sub with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called borrow
+    Let a number be called t
+    Let a number be called x
+    Let a number be called y
+    set borrow to 0
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        set t to x + 4294967296
+        subtract y from t
+        subtract borrow from t
+        set borrow to t
+        shift borrow right by 32 bits
+        set borrow to 1 - borrow
+        bitwise and t with 4294967295
+        set j to pd + i
+        set item j of bn to t
+
+define bn_neg with pd and pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called carry
+    Let a number be called t
+    Let a number be called x
+    set carry to 1
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set t to 4294967295 - x
+        add carry to t
+        set carry to t
+        shift carry right by 32 bits
+        bitwise and t with 4294967295
+        set j to pd + i
+        set item j of bn to t
+
+(---- comparing: 0 = less, 1 = equal, 2 = greater ----)
+define bn_ucmp with pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    for i from 0 to 31:
+        set j to pa + 31
+        subtract i from j
+        set x to item j of bn
+        set j to pb + 31
+        subtract i from j
+        set y to item j of bn
+        if x is above y:
+            give back 2
+        if y is above x:
+            give back 0
+    give back 1
+
+define bn_cmp with pa and pb:
+    Let a number be called na
+    Let a number be called nb
+    set na to bn_isneg(pa)
+    set nb to bn_isneg(pb)
+    if na is above nb:
+        give back 0
+    if nb is above na:
+        give back 2
+    give back bn_ucmp(pa, pb)
+
+(---- bit by bit operations ----)
+define bn_and with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        bitwise and x with y
+        set j to pd + i
+        set item j of bn to x
+
+define bn_or with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        bitwise or x with y
+        set j to pd + i
+        set item j of bn to x
+
+define bn_xor with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        bitwise xor x with y
+        set j to pd + i
+        set item j of bn to x
+
+define bn_andnot with pd and pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        set y to 4294967295 - y
+        bitwise and x with y
+        set j to pd + i
+        set item j of bn to x
+
+define bn_not with pd and pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        set x to 4294967295 - x
+        set j to pd + i
+        set item j of bn to x
+
+(shifts: n is 0 .. 1023; the compiler checks that before it calls these)
+define bn_shl with pd and pa and n:
+    Let a number be called q
+    Let a number be called r
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called x
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called y
+    set q to n / 32
+    set r to n mod 32
+    call bn_zero with 224
+    for i from 0 to 31:
+        set k to i + q
+        if k is below 32:
+            set j to pa + i
+            set x to item j of bn
+            set lo to x
+            shift lo left by r bits
+            bitwise and lo with 4294967295
+            set hi to x
+            set y to 32 - r
+            shift hi right by y bits
+            set j to 224 + k
+            set y to item j of bn
+            bitwise or y with lo
+            set item j of bn to y
+            set k to k + 1
+            if k is below 32:
+                set j to 224 + k
+                set y to item j of bn
+                bitwise or y with hi
+                set item j of bn to y
+    call bn_copy with pd and 224
+
+define bn_shr with pd and pa and n:
+    Let a number be called q
+    Let a number be called r
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called x
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called y
+    set q to n / 32
+    set r to n mod 32
+    call bn_zero with 224
+    for i from q to 31:
+        set k to i - q
+        set j to pa + i
+        set x to item j of bn
+        set lo to x
+        shift lo right by r bits
+        set j to 224 + k
+        set y to item j of bn
+        bitwise or y with lo
+        set item j of bn to y
+        if k is above 0:
+            set hi to x
+            set y to 32 - r
+            shift hi left by y bits
+            bitwise and hi with 4294967295
+            set k to k - 1
+            set j to 224 + k
+            set y to item j of bn
+            bitwise or y with hi
+            set item j of bn to y
+    call bn_copy with pd and 224
+
+define bn_sar with pd and pa and n:
+    Let a number be called na
+    set na to bn_isneg(pa)
+    call bn_shr with pd and pa and n
+    if na is 1:
+        call bn_zero with 160
+        call bn_not with 160 and 160
+        call bn_shr with 160 and 160 and n
+        call bn_not with 160 and 160
+        call bn_or with pd and pd and 160
+
+define bn_rol with pd and pa and n:
+    Let a number be called m
+    if n is 0:
+        call bn_copy with pd and pa
+        give back 0
+    set m to 1024 - n
+    call bn_shl with 192 and pa and n
+    call bn_shr with 160 and pa and m
+    call bn_or with pd and 192 and 160
+
+define bn_ror with pd and pa and n:
+    Let a number be called m
+    set m to 1024 - n
+    if n is 0:
+        set m to 0
+    call bn_rol with pd and pa and m
+
+(single bits)
+define bn_getbit with pa and n:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called s
+    set j to n / 32
+    add pa to j
+    set x to item j of bn
+    set s to n mod 32
+    shift x right by s bits
+    bitwise and x with 1
+    give back x
+
+define bn_setbit with pd and pa and n:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called v
+    Let a number be called s
+    call bn_copy with pd and pa
+    set j to n / 32
+    add pd to j
+    set x to item j of bn
+    set s to n mod 32
+    set v to 1
+    shift v left by s bits
+    bitwise or x with v
+    set item j of bn to x
+
+define bn_clearbit with pd and pa and n:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called v
+    Let a number be called s
+    call bn_copy with pd and pa
+    set j to n / 32
+    add pd to j
+    set x to item j of bn
+    set s to n mod 32
+    set v to 1
+    shift v left by s bits
+    set v to 4294967295 - v
+    bitwise and x with v
+    set item j of bn to x
+
+define bn_flipbit with pd and pa and n:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called v
+    Let a number be called s
+    call bn_copy with pd and pa
+    set j to n / 32
+    add pd to j
+    set x to item j of bn
+    set s to n mod 32
+    set v to 1
+    shift v left by s bits
+    bitwise xor x with v
+    set item j of bn to x
+
+(counting)
+define bn_popcnt with pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called total
+    set total to 0
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        count the set bits of x
+        add x to total
+    give back total
+
+define bn_tzcnt with pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    for i from 0 to 31:
+        set j to pa + i
+        set x to item j of bn
+        if x is above 0:
+            count the trailing zeros of x
+            set j to i * 32
+            add x to j
+            give back j
+    give back 1024
+
+(the highest set bit: its number 0 .. 1023, or 1024 for zero)
+define bn_hibit with pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called q
+    for i from 0 to 31:
+        set q to 31 - i
+        set j to pa + q
+        set x to item j of bn
+        if x is above 0:
+            count the leading zeros of x
+            set j to 63 - x
+            set x to q * 32
+            add j to x
+            give back x
+    give back 1024
+
+define bn_lzcnt with pa:
+    Let a number be called h
+    set h to bn_hibit(pa)
+    if h is 1024:
+        give back 1024
+    set h to 1023 - h
+    give back h
+
+define bn_bswap with pd and pa:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    for i from 0 to 31:
+        set j to pa + 31
+        subtract i from j
+        set x to item j of bn
+        reverse the bytes of x
+        shift x right by 32 bits
+        set j to 160 + i
+        set item j of bn to x
+    call bn_copy with pd and 160
+
+define bn_lowbit with pd and pa:
+    call bn_neg with 128 and pa
+    call bn_and with pd and pa and 128
+
+define bn_clearlow with pd and pa:
+    call bn_small with 128 and 1
+    call bn_sub with 128 and pa and 128
+    call bn_and with pd and pa and 128
+
+define bn_pext with pd and pa and pb:
+    Let a number be called i
+    Let a number be called k
+    Let a number be called m
+    Let a number be called v
+    call bn_zero with 128
+    set k to 0
+    for i from 0 to 1023:
+        set m to bn_getbit(pb, i)
+        if m is 1:
+            set v to bn_getbit(pa, i)
+            if v is 1:
+                call bn_setbit with 128 and 128 and k
+            add 1 to k
+    call bn_copy with pd and 128
+
+define bn_pdep with pd and pa and pb:
+    Let a number be called i
+    Let a number be called k
+    Let a number be called m
+    Let a number be called v
+    call bn_zero with 128
+    set k to 0
+    for i from 0 to 1023:
+        set m to bn_getbit(pb, i)
+        if m is 1:
+            set v to bn_getbit(pa, k)
+            if v is 1:
+                call bn_setbit with 128 and 128 and i
+            add 1 to k
+    call bn_copy with pd and 128
+
+(---- multiply (the low 1024 bits, which is right for signed values too) ----)
+define bn_mul with pd and pa and pb:
+    Let a number be called i
+    Let a number be called q
+    Let a number be called lim
+    Let a number be called j
+    Let a number be called k
+    Let a number be called xi
+    Let a number be called y
+    Let a number be called t
+    Let a number be called r
+    Let a number be called carry
+    call bn_zero with 32
+    for i from 0 to 31:
+        set j to pa + i
+        set xi to item j of bn
+        if xi is above 0:
+            set carry to 0
+            set lim to 31 - i
+            for q from 0 to lim:
+                set j to pb + q
+                set y to item j of bn
+                set t to xi * y
+                set k to 32 + i
+                add q to k
+                set r to item k of bn
+                add r to t
+                add carry to t
+                set carry to t
+                shift carry right by 32 bits
+                bitwise and t with 4294967295
+                set item k of bn to t
+    call bn_copy with pd and 32
+
+(---- divide ----)
+(short division in place by a number below 2^32; gives back the remainder)
+define bn_divsmall with pa and m:
+    Let a number be called i
+    Let a number be called q
+    Let a number be called j
+    Let a number be called x
+    Let a number be called r
+    Let a number be called cur
+    Let a number be called dq
+    set r to 0
+    for i from 0 to 31:
+        set q to 31 - i
+        set j to pa + q
+        set x to item j of bn
+        set cur to r * 4294967296
+        add x to cur
+        set dq to cur / m
+        set r to cur mod m
+        set item j of bn to dq
+    give back r
+
+define bn_shl1 with pd and bit:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called carry
+    set carry to bit
+    for i from 0 to 31:
+        set j to pd + i
+        set x to item j of bn
+        multiply x by 2
+        add carry to x
+        set carry to x
+        shift carry right by 32 bits
+        bitwise and x with 4294967295
+        set item j of bn to x
+
+(unsigned divide of the values at pa and pb (not changed): quotient to slot 64, remainder to slot 96)
+define bn_udivmod with pa and pb:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called m
+    Let a number be called r
+    Let a number be called hb
+    Let a number be called pos
+    Let a number be called c
+    Let a number be called bit
+    Let a number be called k
+    Let a number be called v
+    Let a number be called s
+    Let a number be called wide
+    call bn_zero with 64
+    call bn_zero with 96
+    set wide to 0
+    for i from 1 to 31:
+        set j to pb + i
+        set x to item j of bn
+        if x is above 0:
+            set wide to 1
+    if wide is 0:
+        call bn_copy with 64 and pa
+        set m to item pb of bn
+        set r to bn_divsmall(64, m)
+        set item 96 of bn to r
+        give back 0
+    set hb to bn_hibit(pa)
+    if hb is 1024:
+        give back 0
+    for i from 0 to hb:
+        set pos to hb - i
+        set bit to bn_getbit(pa, pos)
+        call bn_shl1 with 96 and bit
+        set c to bn_ucmp(96, pb)
+        if c is above 0:
+            call bn_sub with 96 and 96 and pb
+            set k to pos / 32
+            add 64 to k
+            set x to item k of bn
+            set s to pos mod 32
+            set v to 1
+            shift v left by s bits
+            bitwise or x with v
+            set item k of bn to x
+    give back 0
+
+(the signed versions: slot 128 and 160 hold the magnitudes)
+define bn_prep with pa and pb:
+    Let a number be called na
+    Let a number be called nb
+    if bn_iszero(pb) is 1:
+        fail with "division by zero"
+    set na to bn_isneg(pa)
+    set nb to bn_isneg(pb)
+    call bn_copy with 128 and pa
+    if na is 1:
+        call bn_neg with 128 and 128
+    call bn_copy with 160 and pb
+    if nb is 1:
+        call bn_neg with 160 and 160
+    call bn_udivmod with 128 and 160
+
+define bn_div with pd and pa and pb:
+    Let a number be called na
+    Let a number be called nb
+    Let a number be called s
+    call bn_prep with pa and pb
+    set na to bn_isneg(pa)
+    set nb to bn_isneg(pb)
+    call bn_copy with pd and 64
+    set s to na + nb
+    if s is 1:
+        call bn_neg with pd and pd
+
+define bn_rem with pd and pa and pb:
+    Let a number be called na
+    call bn_prep with pa and pb
+    set na to bn_isneg(pa)
+    call bn_copy with pd and 96
+    if na is 1:
+        call bn_neg with pd and pd
+
+define bn_mod with pd and pa and pb:
+    Let a number be called na
+    Let a number be called nb
+    Let a number be called nr
+    call bn_prep with pa and pb
+    set na to bn_isneg(pa)
+    set nb to bn_isneg(pb)
+    call bn_copy with 192 and 96
+    if na is 1:
+        call bn_neg with 192 and 192
+    if bn_iszero(192) is 0:
+        set nr to bn_isneg(192)
+        set nr to nr + nb
+        if nr is 1:
+            call bn_add with 192 and 192 and pb
+    call bn_copy with pd and 192
+
+(---- powers and roots ----)
+define bn_pow with pd and pa and pb:
+    Let a number be called c
+    Let a number be called nb
+    Let a number be called odd
+    set nb to bn_isneg(pb)
+    if nb is 1:
+        call bn_small with 128 and 1
+        set c to bn_cmp(pa, 128)
+        if c is 1:
+            call bn_small with pd and 1
+            give back 0
+        call bn_neg with 128 and 128
+        set c to bn_cmp(pa, 128)
+        if c is 1:
+            set odd to item pb of bn
+            bitwise and odd with 1
+            call bn_small with pd and 1
+            if odd is 1:
+                call bn_neg with pd and pd
+            give back 0
+        if bn_iszero(pa) is 1:
+            fail with "division by zero"
+        call bn_zero with pd
+        give back 0
+    call bn_small with 128 and 1
+    call bn_copy with 160 and pa
+    call bn_copy with 192 and pb
+    repeat forever:
+        if bn_iszero(192) is 1:
+            stop
+        set odd to item 192 of bn
+        bitwise and odd with 1
+        if odd is 1:
+            call bn_mul with 128 and 128 and 160
+        call bn_shr with 192 and 192 and 1
+        if bn_iszero(192) is 1:
+            stop
+        call bn_mul with 160 and 160 and 160
+    call bn_copy with pd and 128
+
+define bn_sqrt with pd and pa:
+    Let a number be called hb
+    Let a number be called c
+    Let a number be called t
+    call bn_zero with 160
+    if bn_isneg(pa) is 1:
+        call bn_copy with pd and 160
+        give back 0
+    if bn_iszero(pa) is 1:
+        call bn_copy with pd and 160
+        give back 0
+    call bn_copy with 128 and pa
+    set hb to bn_hibit(pa)
+    set t to hb mod 2
+    set hb to hb - t
+    call bn_zero with 192
+    call bn_setbit with 192 and 192 and hb
+    repeat forever:
+        if bn_iszero(192) is 1:
+            stop
+        call bn_add with 96 and 160 and 192
+        set c to bn_ucmp(128, 96)
+        if c is above 0:
+            call bn_sub with 128 and 128 and 96
+            call bn_shr with 160 and 160 and 1
+            call bn_add with 160 and 160 and 192
+        else:
+            call bn_shr with 160 and 160 and 1
+        call bn_shr with 192 and 192 and 2
+    call bn_copy with pd and 160
+
+(---- text: print and read ----)
+(prints the signed decimal value at pa; no newline)
+define bn_print with pa:
+    Let a number be called n
+    Let a number be called chunks
+    Let a number be called k
+    Let a number be called r
+    Let a number be called j
+    Let a number be called p
+    Let a number be called d
+    Let a number be called s
+    call bn_copy with 32 and pa
+    if bn_isneg(pa) is 1:
+        write "-"
+        call bn_neg with 32 and 32
+    set chunks to 0
+    repeat forever:
+        set r to bn_divsmall(32, 1000000000)
+        set j to 256 + chunks
+        set item j of bn to r
+        add 1 to chunks
+        if bn_iszero(32) is 1:
+            stop
+    set k to chunks - 1
+    set j to 256 + k
+    set r to item j of bn
+    write r
+    while k is above 0:
+        subtract 1 from k
+        set j to 256 + k
+        set r to item j of bn
+        set p to 100000000
+        repeat 9 times:
+            set d to r / p
+            set s to d + 48
+            write char s
+            set r to r mod p
+            set p to p / 10
+
+(reads a decimal number the way `read x` does; gives back 1 when it worked, 0 when it did not)
+define bn_unread with c:
+    set c to c
+
+define bn_read with pd:
+    Let a number be called c
+    Let a number be called w
+    Let a number be called neg
+    Let a number be called digits
+    Let a number be called v
+    call bn_zero with pd
+    set neg to 0
+    set digits to 0
+    repeat forever:
+        read the next byte into c
+        if input_ok is 0:
+            give back 0
+        set w to 0
+        if c is 32:
+            set w to 1
+        if c is above 8:
+            if c is below 14:
+                set w to 1
+        if w is 0:
+            stop
+    if c is 45:
+        set neg to 1
+        read the next byte into c
+        if input_ok is 0:
+            set c to 4294967295
+    else if c is 43:
+        read the next byte into c
+        if input_ok is 0:
+            set c to 4294967295
+    repeat forever:
+        if c is above 57:
+            stop
+        if c is below 48:
+            stop
+        set v to c - 48
+        call bn_mulsmall with pd and 10
+        call bn_addsmall with pd and v
+        add 1 to digits
+        read the next byte into c
+        if input_ok is 0:
+            if neg is 1:
+                call bn_neg with pd and pd
+            give back 1
+    if digits is 0:
+        give back 0
+    call bn_unread with c
+    if neg is 1:
+        call bn_neg with pd and pd
+    give back 1
+
+define bn_mulsmall with pd and m:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called carry
+    set carry to 0
+    for i from 0 to 31:
+        set j to pd + i
+        set x to item j of bn
+        multiply x by m
+        add carry to x
+        set carry to x
+        shift carry right by 32 bits
+        bitwise and x with 4294967295
+        set item j of bn to x
+
+define bn_addsmall with pd and v:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called carry
+    set carry to v
+    for i from 0 to 31:
+        set j to pd + i
+        set x to item j of bn
+        add carry to x
+        set carry to x
+        shift carry right by 32 bits
+        bitwise and x with 4294967295
+        set item j of bn to x

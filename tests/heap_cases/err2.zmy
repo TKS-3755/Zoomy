@@ -1,0 +1,4 @@
+Let a table be called t
+set t to table with "a" as 1
+print "before"
+print t at "zz"

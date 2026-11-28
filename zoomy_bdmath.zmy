@@ -1,0 +1,226 @@
+(Zoomy 8 - Big Decimal functions: exp, natural log, sine, cosine, tangent and arctangent, written in Zoomy.)
+(This file is added to a Big Decimals program that uses one of them, so every backend runs exactly these steps and the answers agree bit for bit.)
+(Each result is good to about 290 significant digits. The constants have 340 digits.)
+
+define bdm_exp with x:
+    Let a number be called u
+    Let a number be called n
+    Let a number be called r
+    Let a number be called t
+    Let a number be called s
+    Let a number be called i
+    Let a number be called ln2
+    Let a number be called lim
+    if x is below -2200:
+        give back 0
+    if x is above 1500:
+        fail with "a Big Decimal got too large (more than about 1e616)"
+    set ln2 to 0.6931471805599453094172321214581765680755001343602552541206800094933936219696947156058633269964186875420014810205706857336855202357581305570326707516350759619307275708283714351903070386238916734711233501153644979552391204751726815749320651555247341395258829504530070953263666426541042391578149520437404303855008019441706416715186447128399681
+    set lim to 2 ^ -1100
+    set t to x / ln2
+    set n to round of t
+    set t to n * ln2
+    set r to x - t
+    set r to r / 65536
+    set s to 1
+    set t to 1
+    set i to 1
+    repeat forever:
+        set t to t * r
+        set t to t / i
+        set s to s + t
+        set u to absolute value of t
+        if u is below lim:
+            stop
+        set i to i + 1
+    repeat 16 times:
+        set s to s * s
+    set t to 2 to the power of n
+    give back s * t
+
+define bdm_ln with x:
+    Let a number be called y
+    Let a number be called n
+    Let a number be called k
+    Let a number be called p
+    Let a number be called q
+    Let a number be called z
+    Let a number be called z2
+    Let a number be called t
+    Let a number be called s
+    Let a number be called i
+    Let a number be called u
+    Let a number be called lim
+    Let a number be called ln2
+    if x is not above 0:
+        fail with "the natural log of zero or a negative number"
+    set ln2 to 0.6931471805599453094172321214581765680755001343602552541206800094933936219696947156058633269964186875420014810205706857336855202357581305570326707516350759619307275708283714351903070386238916734711233501153644979552391204751726815749320651555247341395258829504530070953263666426541042391578149520437404303855008019441706416715186447128399681
+    set lim to 2 ^ -1100
+    set y to x
+    set n to 0
+    repeat 2 times:
+        set k to 1024
+        repeat forever:
+            set p to 2 to the power of k
+            if y is not below 1:
+                set q to y / p
+                if q is not below 1:
+                    set y to q
+                    set n to n + k
+            set k to k / 2
+            if k is below 1:
+                stop
+    repeat 2 times:
+        set k to 1024
+        repeat forever:
+            set p to 2 to the power of k
+            set q to y * p
+            if y is below 1:
+                if q is not above 1:
+                    set y to q
+                    set n to n - k
+            set k to k / 2
+            if k is below 1:
+                stop
+    if y is above 1.5:
+        set y to y / 2
+        set n to n + 1
+    set q to y + 1
+    set z to y - 1
+    set z to z / q
+    set z2 to z * z
+    set t to z
+    set s to z
+    set i to 1
+    repeat forever:
+        set u to absolute value of t
+        if u is below lim:
+            stop
+        set t to t * z2
+        set i to i + 2
+        set u to t / i
+        set s to s + u
+    set s to s * 2
+    set t to n * ln2
+    give back s + t
+
+define bdm_sin with x:
+    Let a number be called pi
+    Let a number be called r
+    Let a number be called a
+    Let a number be called a2
+    Let a number be called ts
+    Let a number be called tc
+    Let a number be called ss
+    Let a number be called sc
+    Let a number be called u
+    Let a number be called d
+    Let a number be called j
+    Let a number be called lim
+    if x is 0:
+        give back 0
+    set pi to 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540
+    set lim to 2 ^ -1100
+    set u to 2 * pi
+    set r to x / u
+    set r to round of r
+    set r to r * u
+    set r to x - r
+    set a to r / 256
+    set a2 to a * a
+    set ts to a
+    set ss to a
+    set tc to 1
+    set sc to 1
+    set j to 1
+    repeat forever:
+        set d to j * (j + 1)
+        set u to tc * a2
+        set u to u / d
+        set tc to 0 - u
+        set sc to sc + tc
+        set j to j + 1
+        set d to j * (j + 1)
+        set u to ts * a2
+        set u to u / d
+        set ts to 0 - u
+        set ss to ss + ts
+        set j to j + 1
+        set u to absolute value of tc
+        if u is below lim:
+            stop
+    repeat 8 times:
+        set u to ss * sc
+        set u to u * 2
+        set d to ss * ss
+        set d to d * 2
+        set sc to 1 - d
+        set ss to u
+    give back ss
+
+define bdm_cos with x:
+    Let a number be called pi
+    Let a number be called u
+    set pi to 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540
+    set u to pi / 2
+    set u to u + x
+    give back bdm_sin(u)
+
+define bdm_tan with x:
+    Let a number be called s
+    Let a number be called c
+    set s to bdm_sin(x)
+    set c to bdm_cos(x)
+    if c is 0:
+        fail with "the tangent of an odd multiple of pi / 2"
+    give back s / c
+
+define bdm_atan with x:
+    Let a number be called pi
+    Let a number be called y
+    Let a number be called y2
+    Let a number be called neg
+    Let a number be called inv
+    Let a number be called t
+    Let a number be called s
+    Let a number be called i
+    Let a number be called u
+    Let a number be called lim
+    if x is 0:
+        give back 0
+    set pi to 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540
+    set lim to 2 ^ -1100
+    set neg to 0
+    set inv to 0
+    set y to absolute value of x
+    if x is below 0:
+        set neg to 1
+    if y is above 1:
+        set y to 1 / y
+        set inv to 1
+    repeat 6 times:
+        set y2 to y * y
+        set u to y2 + 1
+        set u to square root of u
+        set u to u + 1
+        set y to y / u
+    set y2 to y * y
+    set t to y
+    set s to y
+    set i to 1
+    repeat forever:
+        set u to absolute value of t
+        if u is below lim:
+            stop
+        set t to t * y2
+        set t to 0 - t
+        set i to i + 2
+        set u to t / i
+        set s to s + u
+    set s to s * 64
+    if inv is 1:
+        set u to pi / 2
+        set s to u - s
+    if neg is 1:
+        set s to 0 - s
+    give back s

@@ -1,0 +1,21 @@
+from now on, use integers instead of floats
+Create an array named nm with 32 slots
+Let a number be called c
+Let a number be called c2
+set item 0 of nm to 102
+set item 1 of nm to 49
+set item 2 of nm to 46
+set item 3 of nm to 116
+set item 4 of nm to 120
+set item 5 of nm to 116
+set item 6 of nm to 0
+open the file named by nm for reading
+print input_ok
+read the next byte into c
+read the next byte into c2
+print c
+print c2
+close the file
+set item 1 of nm to 50
+open the file named by nm for reading
+print input_ok

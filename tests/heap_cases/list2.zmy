@@ -1,0 +1,15 @@
+Create an array named names
+set names to ["bob", "alice", "carol"]
+append "dave" to names
+sort names
+print names
+print join names with ", "
+print "names: {names}"
+Let a string be called n
+for each n in names:
+    print uppercase of n
+print largest of names
+print names at 2
+set names to empty list
+print names
+print length of names

@@ -1,0 +1,29 @@
+(NoCalc core: the arrays and shared variables that every NoCalc routine works with.)
+(Arrays hold up to 1000 numbers; 'size' says how many of them are in use.)
+Create an array named arr with 1000 slots
+Create an array named arr2 with 1000 slots
+Create an array named result_arr with 1000 slots
+Let a number be called size
+Let a number be called start
+Let a number be called end
+Let a number be called fill_value
+Let a number be called x
+Let a number be called base
+Let a number be called exponent
+Let a number be called log_input
+Let a number be called sum_result
+Let a number be called mean_val
+Let a number be called var_result
+Let a number be called min_val
+Let a number be called max_val
+Let a number be called ptp_val
+Let a number be called dot_result
+Let a number be called norm_result
+Let a number be called dist_result
+Let a number be called std_result
+Let a number be called sin_val
+Let a number be called cos_val
+Let a number be called tan_val
+Let a number be called log_val
+Let a number be called log10_val
+Let a number be called result

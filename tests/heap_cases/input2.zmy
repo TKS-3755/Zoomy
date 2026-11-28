@@ -1,0 +1,5 @@
+Let a string be called name
+set name to ask("Your name? ")
+print "Hi ", name
+set name to ask("Again? ")
+print "Hi ", name, input_ok

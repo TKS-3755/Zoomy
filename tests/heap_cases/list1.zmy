@@ -1,0 +1,40 @@
+Create an array named xs
+Let a number be called x
+set xs to [5, 3, 9, 1]
+append 4 to xs
+insert 7 into xs at 1
+print xs
+print length of xs
+sort xs
+print xs
+sort xs descending
+print xs
+reverse xs
+print xs
+remove 9 from xs
+print xs
+remove item at 0 from xs
+print xs
+for each x in xs:
+    print x * 2
+print the first of xs
+print the last of xs
+print sum of xs
+print largest of xs
+print smallest of xs
+print xs at 1
+set item 1 of xs to 100
+print xs
+if xs contains 100:
+    print "found"
+print position of 100 in xs
+Create an array named ys
+set ys to sorted of xs
+append 1 to ys
+append 2 to ys
+print ys
+print sorted of ys
+clear ys
+print ys
+if ys are empty:
+    print "empty"

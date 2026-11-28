@@ -1,0 +1,27 @@
+Let a string be called s
+Let a string be called t
+Let a number be called n
+set s to "Hello, World"
+set t to uppercase of s
+print t
+print lowercase of s
+print length of s
+set t to trim of "   padded text   "
+print "[", t, "]"
+print "x{n}y"
+set n to 12.5
+print "n is {n} and {n * 2}"
+set n to 0.1 + 0.2
+print "sum {n}"
+print "ok" , " ", "joined"
+if s contains "World":
+    print "has World"
+if s starts with "Hello":
+    print "starts"
+if s ends with "World":
+    print "ends"
+print replace "o" with "0" in s
+print position of "W" in s
+print count of "l" in s
+print split s by ", "
+print join split s by "" with "-"

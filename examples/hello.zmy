@@ -1,0 +1,11 @@
+action start:
+    print "Hello from Zoomy!"
+    Let a number be called n
+    set n to 5.0
+    Let a number be called total
+    set total to 0.0
+    while n is greater than 0.0:
+        add n to total
+        subtract 1.0 from n
+    print "1+2+3+4+5 = ", total
+    finish with total

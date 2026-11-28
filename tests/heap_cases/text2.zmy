@@ -1,0 +1,24 @@
+Let a string be called a
+Let a string be called b
+set a to "apple"
+set b to "banana"
+if a is below b:
+    print "apple first"
+if b is above a:
+    print "banana later"
+if a is not b:
+    print "differ"
+if a is "apple":
+    print "same"
+set a to a + " pie"
+print a
+add "!" to a
+print a
+Let a number be called i
+for i from 0 to 3:
+    print "item {i}: {a at i}"
+for each ch in "abc":
+    print ch
+print reversed of "stressed"
+print "café"
+print length of "café"

@@ -1,0 +1,11 @@
+from now on, use integers instead of floats
+Let a number be called pid
+Let a number be called r
+Let a number be called aa
+set aa to 20
+call the system with the phone number 39 and store the answer in pid
+if pid is greater than 0:
+    print 1
+call the system with the phone number 1 using 1 and 0 and 0
+call the system with the phone number 8 using 99 and aa + 1 and store the answer in r
+print r

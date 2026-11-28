@@ -1,0 +1,11 @@
+Let a table be called names
+Let a string be called k
+set names to empty table
+put "Ann" in names at "1"
+put "Bob" in names at "2"
+print names
+print names at "2"
+for each k in keys of names:
+    print k, " -> ", names at k
+set item "1" of names to "Anna"
+print names at "1"

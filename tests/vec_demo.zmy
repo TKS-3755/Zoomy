@@ -1,0 +1,22 @@
+from now on, use integers instead of floats
+Create an array named a1 with 12 slots
+Create an array named b1 with 12 slots
+Create an array named c1 with 12 slots
+Let a number be called x
+Let a number be called i
+for i from 0 to 11:
+    set item i of a1 to (i * 7) + 3
+    set item i of b1 to (i * i) + 100
+vector add items 0 of a1 and items 4 of b1 into items 8 of c1
+for i from 8 to 11:
+    print item i of c1
+vector xor items 4 of a1 and items 0 of b1 into items 0 of c1
+for i from 0 to 3:
+    print item i of c1
+vector subtract items 8 of a1 and items 8 of b1 into items 8 of a1
+print item 8 of a1, item 11 of a1
+vector sum items 4 of b1 into x
+print x
+set i to 8
+vector or items i of a1 and items 0 of b1 into items 4 of c1
+print item 4 of c1, item 7 of c1

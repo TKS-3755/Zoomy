@@ -1,0 +1,40 @@
+(Primes and perfect squares, all numbers: this whole program compiles to a native ELF (Zoomy 5.1).)
+make checked a global number
+Create an array named primes with 30 slots
+Let a number be called found
+
+(Give back 1 when n is prime, otherwise 0.)
+define is_prime with n:
+    if n is less than 2:
+        give back 0
+    for d from 2 to square root of n:
+        add 1 to checked
+        if n mod d is 0:
+            give back 0
+    give back 1
+
+(Find the first 30 primes.)
+Let a number be called candidate
+set candidate to 2
+until found is 30:
+    if is_prime(candidate) is 1:
+        set item found of primes to candidate
+        add 1 to found
+    add 1 to candidate
+
+Let a number be called total
+for each p in primes:
+    add p to total
+print "The first ", found, " primes end with ", the last of primes, "."
+print "Their sum is ", total, "; I tested ", checked, " divisors."
+
+(Greatest common divisor, by recursion.)
+define gcd with m and k:
+    if k is 0:
+        give back m
+    give back gcd(k, m mod k)
+print "gcd(84, 36) = ", gcd(84, 36)
+
+Let a flag be called lucky
+set lucky to total is above 1000
+print "Is the sum above 1000? ", lucky

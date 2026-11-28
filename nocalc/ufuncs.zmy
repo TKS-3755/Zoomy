@@ -1,0 +1,63 @@
+include nocalc's core
+
+routine add_arrays:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp1
+        load from arr at index i into temp1
+        Let a number be called temp2
+        load from arr2 at index i into temp2
+        add temp1 to temp2
+        store temp2 in result_arr at index i
+        add 1.0 to i
+
+routine subtract_arrays:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp1
+        load from arr at index i into temp1
+        Let a number be called temp2
+        load from arr2 at index i into temp2
+        subtract temp2 from temp1
+        store temp1 in result_arr at index i
+        add 1.0 to i
+
+routine multiply_arrays:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp1
+        load from arr at index i into temp1
+        Let a number be called temp2
+        load from arr2 at index i into temp2
+        multiply temp1 by temp2
+        store temp1 in result_arr at index i
+        add 1.0 to i
+
+routine divide_arrays:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp1
+        load from arr at index i into temp1
+        Let a number be called temp2
+        load from arr2 at index i into temp2
+        divide temp1 by temp2
+        store temp1 in result_arr at index i
+        add 1.0 to i
+
+routine absolute_array:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        if temp_val is less than 0.0:
+            Let a number be called zero
+            set zero to 0.0
+            subtract temp_val from zero
+            set temp_val to zero
+        store temp_val in arr at index i
+        add 1.0 to i

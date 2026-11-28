@@ -1,0 +1,79 @@
+(=============================================================================)
+(                     NODOOM : ZERO-DEPENDENCY NATIVE DOOM                    )
+(                  Compiles to static x86-64 ELF without libc                 )
+(=============================================================================)
+
+include nodoom's core
+include nodoom/map
+include nodoom/physics
+include nodoom/raycast
+
+action start:
+    (Allocate arrays on the 4MB stack frame)
+    (array 'wad_map' comes from the library)
+    (array 'screen' comes from the library)
+
+    (Initialize Map and Player State)
+    run load_wad_map
+    set player_x to 2.5
+    set player_y to 2.5
+    set player_angle to 0.0
+    Let a number be called running
+    set running to 1.0
+
+    (ANSI Escape: Clear screen and hide cursor)
+    write char 27, "[2J", char 27, "[?25l"
+
+    while running is 1.0:
+        (1. Reposition terminal cursor to Home [1;1H])
+        write char 27, "[H"
+
+        (2. Cast 40 rays across the horizontal screen columns)
+        set ray_col to 0.0
+        while ray_col is less than 40.0:
+            run cast_single_ray
+            add 1.0 to ray_col
+
+        (3. Blit the 40x20 framebuffer to stdout with frame borders)
+        print "=========================================="
+        Let a number be called r
+        set r to 0.0
+        while r is less than 20.0:
+            write "|"
+            Let a number be called c
+            set c to 0.0
+            while c is less than 40.0:
+                Structurally:
+                    Let a number be called p_idx
+                    set p_idx to r * 40.0 + c
+                Let a number be called out_char
+                load from screen at index p_idx into out_char
+                write char out_char
+                add 1.0 to c
+            print "|"
+            add 1.0 to r
+        print "=========================================="
+        print " [W] Forward  [S] Back  [A/D] Turn  [Q] Exit"
+
+        (4. Handle Input)
+        Let a number be called cmd
+        read the next character into cmd
+        if cmd is 'w':
+            set move_dir to 1.0
+            run try_move_player
+        if cmd is 's':
+            set move_dir to -1.0
+            run try_move_player
+        if cmd is 'a':
+            set rot_dir to -1.0
+            run rotate_player
+        if cmd is 'd':
+            set rot_dir to 1.0
+            run rotate_player
+        if cmd is 'q':
+            set running to 0.0
+
+    (Restore terminal cursor and exit cleanly)
+    print char 27, "[?25h"
+    print "Exited nodoom safely."
+    finish with 0.0

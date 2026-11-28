@@ -1,0 +1,242 @@
+
+(Name of table file for the material in tb_cnt - dir/KQRvKB.rtbw  flip 1 puts the black pieces first)
+define tb_put with ch:
+    set item tb_fl of tb_fn to ch
+    add 1 to tb_fl
+    give back 0
+
+define tb_letter with code:
+    if code is 6:
+        give back 75
+    if code is 5:
+        give back 81
+    if code is 4:
+        give back 82
+    if code is 3:
+        give back 66
+    if code is 2:
+        give back 78
+    give back 80
+
+define tb_name with flip and ty and di:
+    Let a number be called i
+    Let a number be called col
+    set tb_fl to 0
+    set i to item di of tb_dstart
+    while item i of tb_dirs is not 0 and item i of tb_dirs is not 58:
+        call tb_put with item i of tb_dirs
+        add 1 to i
+    call tb_put with 47
+    for side from 0 to 1:
+        set col to side
+        if flip is 1:
+            set col to 1 - side
+        for code from 6 to 1 step -1:
+            for k from 1 to item ((col * 8) + code) of tb_cnt:
+                call tb_put with tb_letter(code)
+        if side is 0:
+            call tb_put with 118
+    call tb_put with 46
+    call tb_put with 114
+    call tb_put with 116
+    call tb_put with 98
+    if ty is 0:
+        call tb_put with 119
+    else:
+        call tb_put with 122
+    call tb_put with 0
+    give back 0
+
+(Tries every directory - gives back the directory number + 1 and leaves the file open, or 0)
+define tb_open_table with flip and ty:
+    for di from 0 to tb_dirn - 1:
+        call tb_name with flip and ty and di
+        open the file named by tb_fn for reading
+        if input_ok is 1:
+            give back di + 1
+    give back 0
+
+(Port of init_table - reads the header of the file for the material in tb_cnt into the meta record at mb.)
+(Leaves the file open when itab gives back 1.)
+define tb_load with key2 and ty and mb:
+    Let a number be called found
+    Let a number be called flip
+    Let a number be called sym
+    Let a number be called c
+    Let a number be called j
+    Let a number be called numt
+    Let a number be called split
+    Let a number be called eb
+    Let a number be called foff
+    Let a number be called t
+    Let a number be called pr
+    Let a number be called q
+    Let a number be called morep
+    Let a number be called fl
+    Let a number be called tmp
+    Let a number be called ts0
+    Let a number be called ts1
+    Let a number be called mb2
+    Let a number be called b0
+    Let a number be called b1
+    Let a number be called b2
+    Let a number be called b3
+    Let a number be called mp
+    Let a number be called nflip
+    set item mb of tb_meta to key2 + 1
+    set item (mb + 1) of tb_meta to 0
+    set item (mb + 2) of tb_meta to ty
+    set sym to 1
+    for c from 1 to 6:
+        if item c of tb_cnt is not item (c + 8) of tb_cnt:
+            set sym to 0
+    set flip to 0
+    set found to tb_open_table(0, ty)
+    if found is 0 and sym is 0:
+        set found to tb_open_table(1, ty)
+        set flip to 1
+    if found is 0:
+        give back 0
+    (the own piece counts of the file - its white side first)
+    set tb_num to 0
+    set j to 0
+    for c from 1 to 14:
+        if c is 7 or c is 8:
+            skip
+        set q to item c of tb_cnt
+        if flip is 1:
+            if c is at most 6:
+                set q to item (c + 8) of tb_cnt
+            else:
+                set q to item (c - 8) of tb_cnt
+        add q to tb_num
+        if q is 1:
+            add 1 to j
+    set tb_kkenc to 0
+    if j is 2:
+        set tb_kkenc to 1
+    set tb_haspawns to 0
+    set tb_p0 to item 1 of tb_cnt
+    set tb_p1 to item 9 of tb_cnt
+    if flip is 1:
+        set tb_p0 to item 9 of tb_cnt
+        set tb_p1 to item 1 of tb_cnt
+    if tb_p0 is greater than 0 or tb_p1 is greater than 0:
+        set tb_haspawns to 1
+        if tb_p1 is greater than 0 and (tb_p0 is 0 or tb_p0 is greater than tb_p1):
+            set tmp to tb_p0
+            set tb_p0 to tb_p1
+            set tb_p1 to tmp
+    if tb_num is greater than 7:
+        give back 0
+    (check the magic number)
+    set tmp to tb_at32(0)
+    if ty is 0 and tmp is not 1562634353:
+        give back 0
+    if ty is 2 and tmp is not 2769053399:
+        give back 0
+    set split to 0
+    if ty is not 2:
+        set tmp to tb_at8(4)
+        set split to tmp mod 2
+    set numt to 1
+    if tb_haspawns is 1:
+        set numt to 4
+    set eb to tb_alloc(24 * 2 * numt)
+    set foff to 5
+    set morep to 0
+    if tb_haspawns is 1 and tb_p1 is greater than 0:
+        set morep to 1
+    for t from 0 to numt - 1:
+        set ts0 to tb_init_enc(eb + (24 * t), foff, 0, t)
+        set item (eb + 22 + (24 * t)) of tb_pool to ts0
+        if split is 1:
+            set ts1 to tb_init_enc(eb + (24 * (numt + t)), foff, 4, t)
+            set item (eb + 22 + (24 * (numt + t))) of tb_pool to ts1
+        add tb_num + 1 + morep to foff
+    add foff mod 2 to foff
+    (the compressed block headers)
+    for t from 0 to numt - 1:
+        set pr to tb_setup_pairs(foff, item (eb + 22 + (24 * t)) of tb_pool, ty)
+        if pr is less than 0:
+            give back 0
+        set item (eb + 21 + (24 * t)) of tb_pool to pr
+        set item (pr + 8) of tb_pool to tb_sz0
+        set item (pr + 9) of tb_pool to tb_sz1
+        set item (pr + 10) of tb_pool to tb_sz2
+        set foff to tb_np
+        set item (mb + 14 + t) of tb_meta to item (pr + 7) of tb_pool
+        if split is 1:
+            set pr to tb_setup_pairs(foff, item (eb + 22 + (24 * (numt + t))) of tb_pool, ty)
+            if pr is less than 0:
+                give back 0
+            set item (eb + 21 + (24 * (numt + t))) of tb_pool to pr
+            set item (pr + 8) of tb_pool to tb_sz0
+            set item (pr + 9) of tb_pool to tb_sz1
+            set item (pr + 10) of tb_pool to tb_sz2
+            set foff to tb_np
+    (the DTZ value maps)
+    set item (mb + 13) of tb_meta to foff
+    set mp to foff
+    if ty is 2:
+        for t from 0 to numt - 1:
+            set fl to item (mb + 14 + t) of tb_meta
+            if (fl / 2) mod 2 is 1:
+                if (fl / 16) mod 2 is 0:
+                    for i from 0 to 3:
+                        set item (mb + 18 + (4 * t) + i) of tb_meta to (foff + 1) - mp
+                        set tmp to tb_at8(foff)
+                        add 1 + tmp to foff
+                else:
+                    add foff mod 2 to foff
+                    for i from 0 to 3:
+                        set item (mb + 18 + (4 * t) + i) of tb_meta to ((foff + 2) - mp) / 2
+                        set tmp to tb_at16(foff)
+                        add 2 + (2 * tmp) to foff
+        add foff mod 2 to foff
+    (index tables, size tables, data blocks)
+    for t from 0 to numt - 1:
+        set pr to item (eb + 21 + (24 * t)) of tb_pool
+        set tmp to item (pr + 8) of tb_pool
+        set item (pr + 8) of tb_pool to foff
+        add tmp to foff
+        if split is 1:
+            set pr to item (eb + 21 + (24 * (numt + t))) of tb_pool
+            set tmp to item (pr + 8) of tb_pool
+            set item (pr + 8) of tb_pool to foff
+            add tmp to foff
+    for t from 0 to numt - 1:
+        set pr to item (eb + 21 + (24 * t)) of tb_pool
+        set tmp to item (pr + 9) of tb_pool
+        set item (pr + 9) of tb_pool to foff
+        add tmp to foff
+        if split is 1:
+            set pr to item (eb + 21 + (24 * (numt + t))) of tb_pool
+            set tmp to item (pr + 9) of tb_pool
+            set item (pr + 9) of tb_pool to foff
+            add tmp to foff
+    for t from 0 to numt - 1:
+        set foff to ((foff + 63) / 64) * 64
+        set pr to item (eb + 21 + (24 * t)) of tb_pool
+        set tmp to item (pr + 10) of tb_pool
+        set item (pr + 10) of tb_pool to foff
+        add tmp to foff
+        if split is 1:
+            set foff to ((foff + 63) / 64) * 64
+            set pr to item (eb + 21 + (24 * (numt + t))) of tb_pool
+            set tmp to item (pr + 10) of tb_pool
+            set item (pr + 10) of tb_pool to foff
+            add tmp to foff
+    set item (mb + 3) of tb_meta to tb_num
+    set item (mb + 4) of tb_meta to tb_haspawns
+    set item (mb + 5) of tb_meta to sym
+    set item (mb + 6) of tb_meta to tb_kkenc
+    set item (mb + 7) of tb_meta to tb_p0
+    set item (mb + 8) of tb_meta to tb_p1
+    set item (mb + 9) of tb_meta to split
+    set item (mb + 10) of tb_meta to numt
+    set item (mb + 11) of tb_meta to flip
+    set item (mb + 12) of tb_meta to found - 1
+    set item (mb + 34) of tb_meta to eb
+    set item (mb + 1) of tb_meta to 1
+    give back 1

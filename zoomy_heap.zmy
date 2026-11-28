@@ -1,0 +1,1571 @@
+(Zoomy 8 - the text, list and table library, written in Zoomy, for the machine-code compiler.)
+(Everything lives in one big shared array, mem. Slot 0 is never used (0 = no value), slot 1 = the next free slot, slot 2 = input_ok of read_line, slots 8.. = the handles of the library's own texts.)
+(A text is its length followed by one slot per character (code points).)
+(A list is 3 slots: length, capacity, where its items start. A table is 4 slots: count, capacity, where its keys start, where its values start.)
+(A handle is the slot where the text, list or table starts. Values are numbers, or handles for text, lists and tables.)
+(Kinds of item, for printing and comparing: 0 = number, 1 = text, 2 = yes/no.)
+
+Create a shared array named mem with 100000000 slots
+
+(a number cut off toward zero, the way the Python backend reads an item number)
+define toint with x:
+    Structurally:
+        Let a number be called r
+        if x is below 0:
+            calculate the ceiling of x and store the result in r
+        else:
+            calculate the floor of x and store the result in r
+        give back r
+
+(Garbage collector v1: a conservative mark and sweep that runs only between statements of the top level code.)
+(So every live handle is then held by a top level variable.)
+(mhd holds one number for each object at the slot where it starts: its size when live, minus the size once marked.)
+(Size plus 0.25 once its contents are scanned, size plus 0.5 for a free block, and 0 for every other slot.)
+(A text holds no handles, so it is size plus 0.125 and its contents are never scanned: marked, it is size plus 0.375.)
+(Free memory is always zero.)
+(mem slot 4 counts the slots handed out from free blocks since the last collection, slot 1 is the end of the heap.)
+(A safe point collects when slot 1 plus slot 4 is above slot 3.)
+(mem slot 5 starts the list of big free blocks, slot 6 is where the heap starts, slot 7 counts the free blocks.)
+(gcfree at k is the list of free blocks of exactly k slots, linked through their first slot.)
+Create a shared array named mhd with 100000000 slots
+Create an array named gcfree with 65 slots
+Create an array named gcr with 8192 slots
+
+(put the free block of sz slots at a on its list)
+define gc_put with a and sz:
+    Structurally:
+        Let a number be called q
+        set q to sz + 0.5
+        set item a of mhd to q
+        if sz is at most 64:
+            set q to item sz of gcfree
+            set item a of mem to q
+            set item sz of gcfree to a
+        else:
+            set q to item 5 of mem
+            set item a of mem to q
+            set item 5 of mem to a
+        set q to item 7 of mem
+        set item 7 of mem to q + 1
+
+(take a free block of at least n slots off the lists, or 0 when there is none)
+define gc_take with n:
+    Structurally:
+        Let a number be called p
+        Let a number be called q
+        Let a number be called k
+        Let a number be called sz
+        Let a number be called prev
+        Let a number be called nx
+        set p to 0
+        if n is at most 64:
+            set p to item n of gcfree
+            if p is not 0:
+                set nx to item p of mem
+                set item n of gcfree to nx
+                set item p of mem to 0
+                set q to item 7 of mem
+                set item 7 of mem to q - 1
+            else:
+                for k from n + 1 to 64:
+                    if p is 0:
+                        set q to item k of gcfree
+                        if q is not 0:
+                            set nx to item q of mem
+                            set item k of gcfree to nx
+                            set item q of mem to 0
+                            set nx to item 7 of mem
+                            set item 7 of mem to nx - 1
+                            set p to q
+                            set nx to q + n
+                            call gc_put with nx and k - n
+        if p is 0:
+            set prev to 0
+            set q to item 5 of mem
+            while q is not 0:
+                set sz to toint(item q of mhd)
+                set nx to item q of mem
+                if sz is at least n:
+                    if prev is 0:
+                        set item 5 of mem to nx
+                    else:
+                        set item prev of mem to nx
+                    set item q of mem to 0
+                    set nx to item 7 of mem
+                    set item 7 of mem to nx - 1
+                    set p to q
+                    if sz is above n:
+                        set nx to q + n
+                        call gc_put with nx and sz - n
+                    stop
+                set prev to q
+                set q to nx
+        give back p
+
+(the next slots straight off the end of the heap, never from a free block: read_line needs its bytes side by side)
+define alloc_raw with n:
+    Structurally:
+        Let a number be called p
+        Let a number be called q
+        set p to item 1 of mem
+        set q to p + n
+        if q is above 99999990:
+            fail with "out of memory (the native heap for text, lists and tables is full)"
+        set item 1 of mem to q
+        set item p of mhd to n
+        give back p
+
+define alloc with n:
+    Structurally:
+        Let a number be called p
+        Let a number be called q
+        set p to 0
+        if item 7 of mem is above 0:
+            set p to gc_take(n)
+            if p is not 0:
+                set q to item 4 of mem
+                set item 4 of mem to q + n
+        if p is 0:
+            set p to item 1 of mem
+            set q to p + n
+            if q is above 99999990:
+                fail with "out of memory (the native heap for text, lists and tables is full)"
+            set item 1 of mem to q
+        set item p of mhd to n
+        give back p
+
+define lit with k:
+    Structurally:
+        Let a number be called j
+        Let a number be called v
+        set j to 8 + k
+        set v to item j of mem
+        give back v
+
+(---- text ----)
+define tnew with n:
+    Structurally:
+        Let a number be called p
+        set p to alloc(n + 1)
+        set item p of mhd to n + 1.125
+        set item p of mem to n
+        give back p
+
+define tlen with a:
+    Structurally:
+        Let a number be called n
+        set n to item a of mem
+        give back n
+
+define tget with a and i:
+    Structurally:
+        Let a number be called j
+        Let a number be called c
+        set j to a + i + 1
+        set c to item j of mem
+        give back c
+
+define tput with a and i and c:
+    Structurally:
+        Let a number be called j
+        set j to a + i + 1
+        set item j of mem to c
+
+define tcat with a and b:
+    Structurally:
+        Let a number be called la
+        Let a number be called lb
+        Let a number be called p
+        Let a number be called i
+        Let a number be called c
+        Let a number be called j
+        Let a number be called k
+        set la to item a of mem
+        set lb to item b of mem
+        set p to tnew(la + lb)
+        for i from 1 to la:
+            set j to a + i
+            set k to p + i
+            set c to item j of mem
+            set item k of mem to c
+        for i from 1 to lb:
+            set j to b + i
+            set k to p + la + i
+            set c to item j of mem
+            set item k of mem to c
+        give back p
+
+define teq with a and b:
+    Structurally:
+        Let a number be called la
+        Let a number be called lb
+        Let a number be called i
+        Let a number be called j
+        Let a number be called k
+        Let a number be called x
+        Let a number be called y
+        set la to item a of mem
+        set lb to item b of mem
+        if la is not lb:
+            give back 0
+        for i from 1 to la:
+            set j to a + i
+            set k to b + i
+            set x to item j of mem
+            set y to item k of mem
+            if x is not y:
+                give back 0
+        give back 1
+
+(-1, 0 or 1, in the order of code points, like Python)
+define tcmp with a and b:
+    Structurally:
+        Let a number be called la
+        Let a number be called lb
+        Let a number be called n
+        Let a number be called i
+        Let a number be called j
+        Let a number be called k
+        Let a number be called x
+        Let a number be called y
+        set la to item a of mem
+        set lb to item b of mem
+        set n to la
+        if lb is below n:
+            set n to lb
+        for i from 1 to n:
+            set j to a + i
+            set k to b + i
+            set x to item j of mem
+            set y to item k of mem
+            if x is below y:
+                give back -1
+            if x is above y:
+                give back 1
+        if la is below lb:
+            give back -1
+        if la is above lb:
+            give back 1
+        give back 0
+
+(the text from slot i up to (not including) slot j, cut to fit like Python's slices)
+define tsub with a and i and j:
+    Structurally:
+        Let a number be called la
+        Let a number be called n
+        Let a number be called p
+        Let a number be called k
+        Let a number be called x
+        Let a number be called y
+        Let a number be called c
+        set la to item a of mem
+        if i is below 0:
+            set i to 0
+        if j is below 0:
+            set j to 0
+        if j is above la:
+            set j to la
+        set n to j - i
+        if n is below 1:
+            give back tnew(0)
+        set p to tnew(n)
+        for k from 1 to n:
+            set x to a + i + k
+            set c to item x of mem
+            set y to p + k
+            set item y of mem to c
+        give back p
+
+(where b first occurs in a, from slot s on; -1 when it does not)
+define tfind with a and b and s:
+    Structurally:
+        Let a number be called la
+        Let a number be called lb
+        Let a number be called i
+        Let a number be called k
+        Let a number be called j
+        Let a number be called x
+        Let a number be called y
+        Let a number be called ok
+        set la to item a of mem
+        set lb to item b of mem
+        set i to s
+        while i + lb is at most la:
+            set ok to 1
+            for k from 1 to lb:
+                set j to a + i + k
+                set x to item j of mem
+                set j to b + k
+                set y to item j of mem
+                if x is not y:
+                    set ok to 0
+                    stop
+            if ok is 1:
+                give back i
+            add 1 to i
+        give back -1
+
+define tstarts with a and b:
+    Structurally:
+        Let a number be called lb
+        set lb to item b of mem
+        give back teq(tsub(a, 0, lb), b)
+
+define tends with a and b:
+    Structurally:
+        Let a number be called la
+        Let a number be called lb
+        set la to item a of mem
+        set lb to item b of mem
+        if lb is above la:
+            give back 0
+        give back teq(tsub(a, la - lb, la), b)
+
+define tupper with a:
+    Structurally:
+        Let a number be called la
+        Let a number be called p
+        Let a number be called i
+        Let a number be called j
+        Let a number be called c
+        set la to item a of mem
+        set p to tnew(la)
+        for i from 1 to la:
+            set j to a + i
+            set c to item j of mem
+            if c is at least 97:
+                if c is at most 122:
+                    set c to c - 32
+            set j to p + i
+            set item j of mem to c
+        give back p
+
+define tlower with a:
+    Structurally:
+        Let a number be called la
+        Let a number be called p
+        Let a number be called i
+        Let a number be called j
+        Let a number be called c
+        set la to item a of mem
+        set p to tnew(la)
+        for i from 1 to la:
+            set j to a + i
+            set c to item j of mem
+            if c is at least 65:
+                if c is at most 90:
+                    set c to c + 32
+            set j to p + i
+            set item j of mem to c
+        give back p
+
+(1 for the characters Python's strip() removes (the ASCII ones))
+define isspace with c:
+    Structurally:
+        if c is 32:
+            give back 1
+        if c is at least 9:
+            if c is at most 13:
+                give back 1
+        if c is at least 28:
+            if c is at most 31:
+                give back 1
+        give back 0
+
+define ttrim with a:
+    Structurally:
+        Let a number be called la
+        Let a number be called i
+        Let a number be called j
+        set la to item a of mem
+        set i to 0
+        while i is below la:
+            if isspace(tget(a, i)) is 0:
+                stop
+            add 1 to i
+        set j to la
+        while j is above i:
+            if isspace(tget(a, j - 1)) is 0:
+                stop
+            subtract 1 from j
+        give back tsub(a, i, j)
+
+(the text of one character)
+define tchar with c:
+    Structurally:
+        Let a number be called p
+        set p to tnew(1)
+        call tput with p and 0 and c
+        give back p
+
+(text with every occurrence of b replaced by c)
+define treplace with a and b and c:
+    Structurally:
+        Let a number be called lb
+        Let a number be called out
+        Let a number be called i
+        Let a number be called j
+        set lb to item b of mem
+        if lb is 0:
+            give back a
+        set out to tnew(0)
+        set i to 0
+        set j to tfind(a, b, 0)
+        while j is at least 0:
+            set out to tcat(out, tsub(a, i, j))
+            set out to tcat(out, c)
+            set i to j + lb
+            set j to tfind(a, b, i)
+        set out to tcat(out, tsub(a, i, item a of mem + 1))
+        give back out
+
+(how many times b occurs in a, not overlapping)
+define tcount with a and b:
+    Structurally:
+        Let a number be called lb
+        Let a number be called n
+        Let a number be called i
+        Let a number be called j
+        set lb to item b of mem
+        if lb is 0:
+            give back item a of mem + 1
+        set n to 0
+        set i to 0
+        set j to tfind(a, b, 0)
+        while j is at least 0:
+            add 1 to n
+            set i to j + lb
+            set j to tfind(a, b, i)
+        give back n
+
+(---- numbers as text: Zoomy's number format, up to 6 decimals ----)
+(a whole number >= 0 as digits)
+define digits with v:
+    Structurally:
+        Let a number be called n
+        Let a number be called t
+        Let a number be called q
+        Let a number be called d
+        Let a number be called p
+        Let a number be called i
+        set n to 1
+        set t to v
+        while t is at least 10:
+            set t to floor of (t / 10)
+            add 1 to n
+        set p to tnew(n)
+        set t to v
+        for i from n - 1 to 0 by -1:
+            set q to floor of (t / 10)
+            set d to t - q * 10
+            call tput with p and i and d + 48
+            set t to q
+        give back p
+
+(round half to even, like Python's round())
+define rhe with x:
+    Structurally:
+        Let a number be called r
+        Let a number be called f
+        Let a number be called h
+        set r to floor of x
+        set f to x - r
+        if f is above 0.5:
+            give back r + 1
+        if f is below 0.5:
+            give back r
+        set h to floor of (r / 2)
+        if r - 2 * h is 0:
+            give back r
+        give back r + 1
+
+(the six decimals as text without trailing zeros, '.' included; empty when 0)
+define fracpart with fd:
+    Structurally:
+        Let a number be called p
+        Let a number be called i
+        Let a number be called d
+        Let a number be called q
+        Let a number be called n
+        if fd is 0:
+            give back tnew(0)
+        set p to tnew(7)
+        call tput with p and 0 and 46
+        set q to fd
+        for i from 6 to 1 by -1:
+            set d to q - 10 * floor of (q / 10)
+            call tput with p and i and d + 48
+            set q to floor of (q / 10)
+        set n to 7
+        while n is above 1:
+            if tget(p, n - 1) is not 48:
+                stop
+            subtract 1 from n
+        give back tsub(p, 0, n)
+
+define num2text with x:
+    Structurally:
+        Let a number be called a
+        Let a number be called neg
+        Let a number be called ip
+        Let a number be called fd
+        Let a number be called e
+        Let a number be called m
+        Let a number be called out
+        if x is not x:
+            give back lit(0)
+        set neg to 0
+        set a to x
+        if x is below 0:
+            set neg to 1
+            set a to 0 - x
+        if a is 0:
+            give back lit(3)
+        if a is above 1.7976931348623157e308:
+            if neg is 1:
+                give back lit(2)
+            give back lit(1)
+        set out to tnew(0)
+        if neg is 1:
+            set out to tchar(45)
+        if a is at least 0.000001:
+            if a is below 1000000000000000:
+                set ip to floor of a
+                set fd to rhe((a - ip) * 1000000)
+                if fd is at least 1000000:
+                    add 1 to ip
+                    subtract 1000000 from fd
+                set out to tcat(out, digits(ip))
+                set out to tcat(out, fracpart(fd))
+                give back out
+        set e to 0
+        set m to a
+        while m is at least 10:
+            set m to m / 10
+            add 1 to e
+        while m is below 1:
+            set m to m * 10
+            subtract 1 from e
+        set ip to floor of m
+        set fd to rhe((m - ip) * 1000000)
+        if fd is at least 1000000:
+            add 1 to ip
+            subtract 1000000 from fd
+        if ip is at least 10:
+            set ip to 1
+            add 1 to e
+        set out to tcat(out, digits(ip))
+        set out to tcat(out, fracpart(fd))
+        if e is below 0:
+            set out to tcat(out, lit(15))
+            set e to 0 - e
+        else:
+            set out to tcat(out, lit(16))
+        if e is below 10:
+            set out to tcat(out, tchar(48))
+        set out to tcat(out, digits(e))
+        give back out
+
+(a text as number: what Python's float() takes - sign, digits, one point, an exponent; nan when it is not a number)
+define text2num with a:
+    Structurally:
+        Let a number be called t
+        Let a number be called n
+        Let a number be called i
+        Let a number be called c
+        Let a number be called sign
+        Let a number be called v
+        Let a number be called scale
+        Let a number be called seen
+        Let a number be called e
+        Let a number be called esign
+        Let a number be called ev
+        set t to ttrim(a)
+        set n to item t of mem
+        set i to 0
+        set sign to 1
+        set seen to 0
+        set v to 0
+        set scale to 0
+        if n is 0:
+            set item 2 of mem to 0
+            give back 0
+        set c to tget(t, 0)
+        if c is 45:
+            set sign to -1
+            add 1 to i
+        else:
+            if c is 43:
+                add 1 to i
+        while i is below n:
+            set c to tget(t, i)
+            if c is below 48:
+                stop
+            if c is above 57:
+                stop
+            set v to v * 10 + (c - 48)
+            set seen to 1
+            add 1 to i
+        if i is below n:
+            if tget(t, i) is 46:
+                add 1 to i
+                while i is below n:
+                    set c to tget(t, i)
+                    if c is below 48:
+                        stop
+                    if c is above 57:
+                        stop
+                    set v to v * 10 + (c - 48)
+                    set scale to scale + 1
+                    set seen to 1
+                    add 1 to i
+        set e to 0
+        if i is below n:
+            set c to tget(t, i)
+            if seen is 1:
+                if c is 101:
+                    set esign to 1
+                    add 1 to i
+                    if i is below n:
+                        if tget(t, i) is 45:
+                            set esign to -1
+                            add 1 to i
+                        else:
+                            if tget(t, i) is 43:
+                                add 1 to i
+                    set ev to 0
+                    set c to 0
+                    while i is below n:
+                        set c to tget(t, i)
+                        if c is below 48:
+                            stop
+                        if c is above 57:
+                            stop
+                        set ev to ev * 10 + (c - 48)
+                        add 1 to i
+                    set e to esign * ev
+        if seen is 0:
+            set item 2 of mem to 0
+            give back 0
+        if i is below n:
+            set item 2 of mem to 0
+            give back 0
+        set e to e - scale
+        while e is below 0:
+            set v to v / 10
+            add 1 to e
+        while e is above 0:
+            set v to v * 10
+            subtract 1 from e
+        set item 2 of mem to 1
+        give back sign * v
+
+(---- writing text to the output, as UTF-8 ----)
+define wtext with a:
+    Structurally:
+        Let a number be called n
+        Let a number be called i
+        Let a number be called c
+        set n to item a of mem
+        for i from 1 to n:
+            set c to tget(a, i - 1)
+            call wchar with c
+
+define wchar with c:
+    Structurally:
+        Let a number be called hi
+        if c is below 128:
+            write char c
+        else:
+            if c is below 2048:
+                set hi to floor of (c / 64)
+                write char 192 + hi
+                write char 128 + (c - hi * 64)
+            else:
+                if c is below 65536:
+                    set hi to floor of (c / 4096)
+                    write char 224 + hi
+                    set c to c - hi * 4096
+                    set hi to floor of (c / 64)
+                    write char 128 + hi
+                    write char 128 + (c - hi * 64)
+                else:
+                    set hi to floor of (c / 262144)
+                    write char 240 + hi
+                    set c to c - hi * 262144
+                    set hi to floor of (c / 4096)
+                    write char 128 + hi
+                    set c to c - hi * 4096
+                    set hi to floor of (c / 64)
+                    write char 128 + hi
+                    write char 128 + (c - hi * 64)
+
+(---- reading a line (UTF-8 decoded, a final carriage return dropped); mem slot 2 says whether a line was there ----)
+define read_line:
+    Structurally:
+        Let a number be called c
+        Let a number be called n
+        Let a number be called buf
+        Let a number be called b
+        Let a number be called p
+        Let a number be called m
+        Let a number be called i
+        Let a number be called cp
+        Let a number be called need
+        Let a number be called d
+        Let a number be called ok
+        Let a number be called x
+        read the next byte into c
+        if input_ok is 0:
+            set item 2 of mem to 0
+            give back tnew(0)
+        set buf to item 1 of mem
+        set n to 0
+        while input_ok is 1:
+            if c is 10:
+                stop
+            set b to alloc_raw(1)
+            set item b of mem to c
+            add 1 to n
+            read the next byte into c
+        if n is above 0:
+            set b to buf + n - 1
+            if item b of mem is 13:
+                subtract 1 from n
+        set p to tnew(n)
+        set m to 0
+        set i to 0
+        while i is below n:
+            set b to buf + i
+            set c to item b of mem
+            set need to 0
+            set cp to c
+            if c is at least 192:
+                if c is below 224:
+                    set need to 1
+                    set cp to c - 192
+                else:
+                    if c is below 240:
+                        set need to 2
+                        set cp to c - 224
+                    else:
+                        if c is below 248:
+                            set need to 3
+                            set cp to c - 240
+            if c is at least 128:
+                if need is 0:
+                    set cp to 65533
+            if need is above 0:
+                set ok to 1
+                for d from 1 to need:
+                    if i + d is at least n:
+                        set ok to 0
+                        stop
+                    set b to buf + i + d
+                    set x to item b of mem
+                    if x is below 128:
+                        set ok to 0
+                        stop
+                    if x is at least 192:
+                        set ok to 0
+                        stop
+                    set cp to cp * 64 + (x - 128)
+                if ok is 0:
+                    set cp to 65533
+                    set need to 0
+            add 1 to m
+            call tput with p and m - 1 and cp
+            set i to i + need + 1
+        set item p of mem to m
+        set item 2 of mem to 1
+        give back p
+
+(---- lists ----)
+define lnew with cap:
+    Structurally:
+        Let a number be called p
+        Let a number be called d
+        Let a number be called b
+        if cap is below 4:
+            set cap to 4
+        set p to alloc(3)
+        set d to alloc(cap)
+        set item p of mem to 0
+        set b to p + 1
+        set item b of mem to cap
+        set b to p + 2
+        set item b of mem to d
+        give back p
+
+define lpush with h and v:
+    Structurally:
+        Let a number be called n
+        Let a number be called cap
+        Let a number be called d
+        Let a number be called nd
+        Let a number be called i
+        Let a number be called s
+        Let a number be called t
+        set n to item h of mem
+        set s to h + 1
+        set cap to item s of mem
+        set t to h + 2
+        set d to item t of mem
+        if n is at least cap:
+            set cap to cap * 2
+            set nd to alloc(cap)
+            for i from 0 to n - 1:
+                set s to d + i
+                set t to nd + i
+                set item t of mem to item s of mem
+            set d to nd
+            set s to h + 1
+            set item s of mem to cap
+            set t to h + 2
+            set item t of mem to d
+        set s to d + n
+        set item s of mem to v
+        set item h of mem to n + 1
+
+(the slot where item i is kept, after checking 0 <= i < length)
+define lslot with h and i:
+    Structurally:
+        Let a number be called k
+        Let a number be called n
+        Let a number be called d
+        set k to toint(i)
+        set n to item h of mem
+        if k is below 0:
+            fail with "array index out of range"
+        if k is at least n:
+            fail with "array index out of range"
+        set d to h + 2
+        set d to item d of mem
+        give back d + k
+
+define lget with h and i:
+    Structurally:
+        Let a number be called s
+        Let a number be called v
+        set s to lslot(h, i)
+        set v to item s of mem
+        give back v
+
+define lset with h and i and v:
+    Structurally:
+        Let a number be called s
+        set s to lslot(h, i)
+        set item s of mem to v
+
+define llen with h:
+    Structurally:
+        Let a number be called n
+        set n to item h of mem
+        give back n
+
+define linsert with h and i and v:
+    Structurally:
+        Let a number be called k
+        Let a number be called n
+        Let a number be called d
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        set k to toint(i)
+        set n to item h of mem
+        if k is below 0:
+            fail with "array index out of range"
+        if k is above n:
+            fail with "array index out of range"
+        call lpush with h and v
+        set d to h + 2
+        set d to item d of mem
+        for j from n to k + 1 by -1:
+            set s to d + j - 1
+            set t to d + j
+            set item t of mem to item s of mem
+        set t to d + k
+        set item t of mem to v
+
+define lremove_at with h and i:
+    Structurally:
+        Let a number be called k
+        Let a number be called n
+        Let a number be called d
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        set k to toint(i)
+        set n to item h of mem
+        if k is below 0:
+            fail with "array index out of range"
+        if k is at least n:
+            fail with "array index out of range"
+        set d to h + 2
+        set d to item d of mem
+        for j from k to n - 2:
+            set s to d + j + 1
+            set t to d + j
+            set item t of mem to item s of mem
+        set item h of mem to n - 1
+
+(the item number of the first item equal to v (kind 0 number, 1 text, 2 yes/no), or -1)
+define lindex with h and v and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called x
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        for i from 0 to n - 1:
+            set s to d + i
+            set x to item s of mem
+            if kind is 1:
+                if teq(x, v) is 1:
+                    give back i
+            else:
+                if x is v:
+                    give back i
+        give back -1
+
+define lremove_val with h and v and kind:
+    Structurally:
+        Let a number be called i
+        set i to lindex(h, v, kind)
+        if i is below 0:
+            fail with "that value is not in the list"
+        call lremove_at with h and i
+
+define lclear with h:
+    Structurally:
+        set item h of mem to 0
+
+define lcopy with h:
+    Structurally:
+        Let a number be called n
+        Let a number be called p
+        Let a number be called i
+        Let a number be called d
+        Let a number be called s
+        Let a number be called t
+        set n to item h of mem
+        set p to lnew(n)
+        set d to h + 2
+        set d to item d of mem
+        for i from 0 to n - 1:
+            set s to d + i
+            call lpush with p and item s of mem
+        give back p
+
+define lconcat with a and b:
+    Structurally:
+        Let a number be called p
+        Let a number be called n
+        Let a number be called i
+        Let a number be called d
+        Let a number be called s
+        set p to lcopy(a)
+        set n to item b of mem
+        set d to b + 2
+        set d to item d of mem
+        for i from 0 to n - 1:
+            set s to d + i
+            call lpush with p and item s of mem
+        give back p
+
+define lreverse with h:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        Let a number be called x
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        set i to 0
+        set j to n - 1
+        while i is below j:
+            set s to d + i
+            set t to d + j
+            set x to item s of mem
+            set item s of mem to item t of mem
+            set item t of mem to x
+            add 1 to i
+            subtract 1 from j
+    
+define lreversed with h:
+    Structurally:
+        Let a number be called p
+        set p to lcopy(h)
+        call lreverse with p
+        give back p
+
+(1 when x belongs before y (kind 0 numbers, 1 text; yes/no sorts as numbers))
+define before with x and y and kind:
+    Structurally:
+        if kind is 1:
+            if tcmp(x, y) is below 0:
+                give back 1
+            give back 0
+        if x is below y:
+            give back 1
+        give back 0
+
+(sort in place, shell sort; equal items are indistinguishable, so stability does not show)
+define lsort with h and desc and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called gap
+        Let a number be called third
+        Let a number be called i
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        Let a number be called x
+        Let a number be called y
+        Let a number be called ok
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        set third to floor of (n / 3)
+        set gap to 1
+        while gap is below third:
+            set gap to gap * 3 + 1
+        while gap is at least 1:
+            for i from gap to n - 1:
+                set s to d + i
+                set x to item s of mem
+                set j to i
+                set ok to 1
+                while ok is 1:
+                    if j is below gap:
+                        set ok to 0
+                    else:
+                        set t to d + j - gap
+                        set y to item t of mem
+                        if desc is 1:
+                            set ok to before(y, x, kind)
+                        else:
+                            set ok to before(x, y, kind)
+                        if ok is 1:
+                            set s to d + j
+                            set item s of mem to y
+                            set j to j - gap
+                set s to d + j
+                set item s of mem to x
+            set gap to floor of (gap / 3)
+
+define lsorted with h and kind:
+    Structurally:
+        Let a number be called p
+        set p to lcopy(h)
+        call lsort with p and 0 and kind
+        give back p
+
+define lsum with h:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called t
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        set t to 0
+        for i from 0 to n - 1:
+            set s to d + i
+            set t to t + item s of mem
+        give back t
+
+(the smallest (want 0) or largest (want 1) item)
+define lextreme with h and want and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called x
+        Let a number be called best
+        set n to item h of mem
+        if n is 0:
+            fail with "the list is empty"
+        set d to h + 2
+        set d to item d of mem
+        set s to d
+        set best to item s of mem
+        for i from 1 to n - 1:
+            set s to d + i
+            set x to item s of mem
+            if want is 0:
+                if before(x, best, kind) is 1:
+                    set best to x
+            else:
+                if before(best, x, kind) is 1:
+                    set best to x
+        give back best
+
+(the items joined with sep: numbers in Zoomy's number format, yes/no as yes/no)
+define ljoin with h and sep and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called out
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        set out to tnew(0)
+        for i from 0 to n - 1:
+            if i is above 0:
+                set out to tcat(out, sep)
+            set s to d + i
+            set out to tcat(out, show_plain(item s of mem, kind))
+        give back out
+
+(one value as text, the way print shows it)
+define show_plain with v and kind:
+    Structurally:
+        if kind is 1:
+            give back v
+        if kind is 2:
+            if v is 0:
+                give back lit(10)
+            give back lit(9)
+        give back num2text(v)
+
+(one value as text inside a list or table: text gets quotes)
+define show_inner with v and kind:
+    Structurally:
+        Let a number be called out
+        Let a number be called n
+        Let a number be called i
+        Let a number be called c
+        if kind is 1:
+            set out to tchar(34)
+            set n to item v of mem
+            for i from 0 to n - 1:
+                set c to tget(v, i)
+                if c is 92:
+                    set out to tcat(out, lit(18))
+                else:
+                    if c is 34:
+                        set out to tcat(out, lit(19))
+                    else:
+                        if c is 10:
+                            set out to tcat(out, lit(20))
+                        else:
+                            if c is 9:
+                                set out to tcat(out, lit(21))
+                            else:
+                                set out to tcat(out, tchar(c))
+            set out to tcat(out, tchar(34))
+            give back out
+        give back show_plain(v, kind)
+
+define lshow with h and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called out
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        set out to lit(11)
+        for i from 0 to n - 1:
+            if i is above 0:
+                set out to tcat(out, lit(13))
+            set s to d + i
+            set out to tcat(out, show_inner(item s of mem, kind))
+        set out to tcat(out, lit(12))
+        give back out
+
+(split text a at every occurrence of sep (every character when sep is empty))
+define tsplit with a and sep:
+    Structurally:
+        Let a number be called p
+        Let a number be called la
+        Let a number be called ls
+        Let a number be called i
+        Let a number be called j
+        set p to lnew(4)
+        set la to item a of mem
+        set ls to item sep of mem
+        if ls is 0:
+            for i from 0 to la - 1:
+                call lpush with p and tchar(tget(a, i))
+            give back p
+        set i to 0
+        set j to tfind(a, sep, 0)
+        while j is at least 0:
+            call lpush with p and tsub(a, i, j)
+            set i to j + ls
+            set j to tfind(a, sep, i)
+        call lpush with p and tsub(a, i, la)
+        give back p
+
+(---- tables: keys are text; the keys and the values are two parallel lists, in the order they were added ----)
+define tbnew:
+    Structurally:
+        Let a number be called p
+        Let a number be called d
+        Let a number be called b
+        set p to alloc(4)
+        set d to alloc(4)
+        set item p of mem to 0
+        set b to p + 1
+        set item b of mem to 4
+        set b to p + 2
+        set item b of mem to d
+        set d to alloc(4)
+        set b to p + 3
+        set item b of mem to d
+        give back p
+
+(the entry number of key k, or -1)
+define tbfind with h and k:
+    Structurally:
+        Let a number be called n
+        Let a number be called d
+        Let a number be called i
+        Let a number be called s
+        Let a number be called x
+        set n to item h of mem
+        set d to h + 2
+        set d to item d of mem
+        for i from 0 to n - 1:
+            set s to d + i
+            set x to item s of mem
+            if teq(x, k) is 1:
+                give back i
+        give back -1
+
+define tbput with h and k and v:
+    Structurally:
+        Let a number be called i
+        Let a number be called n
+        Let a number be called cap
+        Let a number be called kd
+        Let a number be called vd
+        Let a number be called nk
+        Let a number be called nv
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        set i to tbfind(h, k)
+        set kd to h + 2
+        set kd to item kd of mem
+        set vd to h + 3
+        set vd to item vd of mem
+        if i is at least 0:
+            set s to vd + i
+            set item s of mem to v
+        else:
+            set n to item h of mem
+            set s to h + 1
+            set cap to item s of mem
+            if n is at least cap:
+                set cap to cap * 2
+                set nk to alloc(cap)
+                set nv to alloc(cap)
+                for j from 0 to n - 1:
+                    set s to kd + j
+                    set t to nk + j
+                    set item t of mem to item s of mem
+                    set s to vd + j
+                    set t to nv + j
+                    set item t of mem to item s of mem
+                set kd to nk
+                set vd to nv
+                set s to h + 1
+                set item s of mem to cap
+                set s to h + 2
+                set item s of mem to kd
+                set s to h + 3
+                set item s of mem to vd
+            set s to kd + n
+            set item s of mem to k
+            set s to vd + n
+            set item s of mem to v
+            set item h of mem to n + 1
+
+define tbget with h and k:
+    Structurally:
+        Let a number be called i
+        Let a number be called vd
+        Let a number be called s
+        set i to tbfind(h, k)
+        if i is below 0:
+            fail with "the table has no entry for that key"
+        set vd to h + 3
+        set vd to item vd of mem
+        set s to vd + i
+        give back item s of mem
+
+define tbhas with h and k:
+    Structurally:
+        if tbfind(h, k) is below 0:
+            give back 0
+        give back 1
+
+define tbdel with h and k:
+    Structurally:
+        Let a number be called i
+        Let a number be called n
+        Let a number be called kd
+        Let a number be called vd
+        Let a number be called j
+        Let a number be called s
+        Let a number be called t
+        set i to tbfind(h, k)
+        if i is below 0:
+            fail with "the table has no entry for that key"
+        set n to item h of mem
+        set kd to h + 2
+        set kd to item kd of mem
+        set vd to h + 3
+        set vd to item vd of mem
+        for j from i to n - 2:
+            set s to kd + j + 1
+            set t to kd + j
+            set item t of mem to item s of mem
+            set s to vd + j + 1
+            set t to vd + j
+            set item t of mem to item s of mem
+        set item h of mem to n - 1
+
+define tbkeys with h:
+    Structurally:
+        Let a number be called n
+        Let a number be called kd
+        Let a number be called p
+        Let a number be called i
+        Let a number be called s
+        set n to item h of mem
+        set kd to h + 2
+        set kd to item kd of mem
+        set p to lnew(n)
+        for i from 0 to n - 1:
+            set s to kd + i
+            call lpush with p and item s of mem
+        give back p
+
+define tbvalues with h:
+    Structurally:
+        Let a number be called n
+        Let a number be called vd
+        Let a number be called p
+        Let a number be called i
+        Let a number be called s
+        set n to item h of mem
+        set vd to h + 3
+        set vd to item vd of mem
+        set p to lnew(n)
+        for i from 0 to n - 1:
+            set s to vd + i
+            call lpush with p and item s of mem
+        give back p
+
+define tbshow with h and kind:
+    Structurally:
+        Let a number be called n
+        Let a number be called kd
+        Let a number be called vd
+        Let a number be called i
+        Let a number be called s
+        Let a number be called out
+        set n to item h of mem
+        if n is 0:
+            give back lit(5)
+        set kd to h + 2
+        set kd to item kd of mem
+        set vd to h + 3
+        set vd to item vd of mem
+        set out to lit(6)
+        for i from 0 to n - 1:
+            if i is above 0:
+                set out to tcat(out, lit(7))
+            set s to kd + i
+            set out to tcat(out, show_inner(item s of mem, 1))
+            set out to tcat(out, lit(8))
+            set s to vd + i
+            set out to tcat(out, show_inner(item s of mem, kind))
+        give back out
+
+
+(---- a few more, used by the compiler's rewrite ----)
+define tat with a and i:
+    Structurally:
+        Let a number be called k
+        set k to toint(i)
+        if k is below 0:
+            fail with "array index out of range"
+        if k is at least tlen(a):
+            fail with "array index out of range"
+        give back tchar(tget(a, k))
+
+define llast with h:
+    Structurally:
+        Let a number be called n
+        set n to item h of mem
+        if n is 0:
+            fail with "the list is empty"
+        give back lget(h, n - 1)
+
+define lfirst with h:
+    Structurally:
+        give back lget(h, 0)
+
+define numfrom with a:
+    Structurally:
+        Let a number be called v
+        set v to text2num(a)
+        if item 2 of mem is 0:
+            fail with "cannot turn that text into a number"
+        give back v
+
+define tbclear with h:
+    Structurally:
+        set item h of mem to 0
+
+(the text with its characters in the opposite order)
+define trev with a:
+    Structurally:
+        Let a number be called n
+        Let a number be called p
+        Let a number be called i
+        set n to item a of mem
+        set p to tnew(n)
+        for i from 0 to n - 1:
+            call tput with p and i and tget(a, n - 1 - i)
+        give back p
+
+(the code of a one-character text)
+define tcode with a:
+    Structurally:
+        if item a of mem is not 1:
+            fail with "expected a single character"
+        give back tget(a, 0)
+
+(mark the object that starts at v, if v is one; 1 when it was newly marked)
+define gc_mark with v:
+    Structurally:
+        Let a number be called f
+        Let a number be called h
+        if v is below (item 6 of mem):
+            give back 0
+        if v is at least (item 1 of mem):
+            give back 0
+        calculate the floor of v and store the result in f
+        if f is not v:
+            give back 0
+        set h to item v of mhd
+        if h is above 0:
+            calculate the floor of h and store the result in f
+            if f is h:
+                set item v of mhd to 0 - h
+                give back 1
+            if h - f is 0.125:
+                set item v of mhd to f + 0.375
+                give back 2
+        give back 0
+
+(collect: the top level variables, nroots of them, are in gcr)
+define gc_collect with m:
+    Structurally:
+        Let a number be called i
+        Let a number be called j
+        Let a number be called p
+        Let a number be called top
+        Let a number be called base
+        Let a number be called h
+        Let a number be called sz
+        Let a number be called v
+        Let a number be called k
+        Let a number be called again
+        Let a number be called run
+        Let a number be called live
+        Let a number be called f
+        Let a number be called r
+        set base to item 6 of mem
+        set top to item 1 of mem
+        for i from 0 to m - 1:
+            set v to item i of gcr
+            set r to gc_mark(v)
+        set again to 1
+        while again is 1:
+            set again to 0
+            set p to base
+            while p is below top:
+                set h to item p of mhd
+                if h is below 0:
+                    set sz to 0 - h
+                    set item p of mhd to sz + 0.25
+                    for j from 0 to sz - 1:
+                        set k to p + j
+                        set v to item k of mem
+                        if v is at least base and v is below top:
+                            set r to gc_mark(v)
+                            if r is 1 and v is below p:
+                                set again to 1
+                    set p to p + sz
+                else:
+                    if h is 0:
+                        fail with "the heap is damaged (garbage collector)"
+                    calculate the floor of h and store the result in sz
+                    set p to p + sz
+        for k from 1 to 64:
+            set item k of gcfree to 0
+        set item 5 of mem to 0
+        set item 7 of mem to 0
+        set live to 0
+        set run to -1
+        set p to base
+        while p is below top:
+            set h to item p of mhd
+            if h is below 0:
+                fail with "the heap is damaged (garbage collector)"
+            calculate the floor of h and store the result in sz
+            set f to h - sz
+            if f is 0.25 or f is 0.375:
+                if run is at least 0:
+                    call gc_put with run and p - run
+                    set run to -1
+                if f is 0.375:
+                    set item p of mhd to sz + 0.125
+                else:
+                    set item p of mhd to sz
+                set live to live + sz
+            else:
+                if run is below 0:
+                    set run to p
+                else:
+                    set item p of mhd to 0
+                for j from 0 to sz - 1:
+                    set k to p + j
+                    set item k of mem to 0
+            set p to p + sz
+        if run is at least 0:
+            set item run of mhd to 0
+            set item 1 of mem to run
+        set i to live
+        if i is below 24000000:
+            set i to 24000000
+        set k to item 1 of mem
+        if k + i is above 98000000:
+            set i to 98000000 - k
+            if i is below 1000000:
+                set i to 1000000
+        set k to item 1 of mem
+        set item 3 of mem to k + i
+        set item 4 of mem to 0

@@ -1,0 +1,28 @@
+Create an array named xs
+Create an array named ys
+Let a number be called i
+Let a number be called total
+Let a string be called s
+set total to 0
+for i from 1 to 250:
+    set xs to [i, i + 1, i + 2]
+    append sum of xs to ys
+    set s to "xs {i}"
+    sort xs descending
+    add xs at 0 to total
+print total
+print length of ys
+print ys at 100
+print s
+set i to 0
+while i is below 120:
+    set s to "loop {i}"
+    reverse xs
+    add 1 to i
+print s
+print xs
+repeat 3 times:
+    set s to "rep {i}"
+    set ys to [i]
+print ys
+print s

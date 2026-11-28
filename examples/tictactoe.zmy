@@ -1,0 +1,94 @@
+(Tic-Tac-Toe: a 2-player game written in Zoomy.)
+(Players take turns picking an open square from 1 to 9.)
+
+define print_board with b:
+    print ""
+    print " {b[0]} | {b[1]} | {b[2]} "
+    print "---+---+---"
+    print " {b[3]} | {b[4]} | {b[5]} "
+    print "---+---+---"
+    print " {b[6]} | {b[7]} | {b[8]} "
+    print ""
+
+define check_winner with b and p:
+    (Check horizontal rows)
+    if b[0] is p and b[1] is p and b[2] is p:
+        give back yes
+    if b[3] is p and b[4] is p and b[5] is p:
+        give back yes
+    if b[6] is p and b[7] is p and b[8] is p:
+        give back yes
+
+    (Check vertical columns)
+    if b[0] is p and b[3] is p and b[6] is p:
+        give back yes
+    if b[1] is p and b[4] is p and b[7] is p:
+        give back yes
+    if b[2] is p and b[5] is p and b[8] is p:
+        give back yes
+
+    (Check diagonals)
+    if b[0] is p and b[4] is p and b[8] is p:
+        give back yes
+    if b[2] is p and b[4] is p and b[6] is p:
+        give back yes
+
+    give back no
+
+(--- Game Setup ---)
+Create an array named board
+set board to ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+Let a string be called player
+set player to "X"
+Let a number be called turns
+set turns to 0
+Let a flag be called game_over
+set game_over to no
+
+print "Welcome to Zoomy Tic-Tac-Toe!"
+print "Type a number (1-9) to claim a spot, or 'quit' to exit."
+call print_board with board
+
+(--- Main Game Loop ---)
+while not game_over and turns is less than 9:
+    Let a flag be called move_made
+    set move_made to no
+
+    while not move_made:
+        Let a string be called choice
+        set choice to ask "Player {player}'s turn: "
+        if input_ok is 0 or trim of lowercase of choice is "quit":
+            print "Thanks for playing!"
+            finish with 0
+
+        try:
+            Let a number be called spot
+            set spot to number from trim of choice
+            check that spot is at least 1
+            check that spot is at most 9
+            Let a number be called idx
+            set idx to spot - 1
+            check that board[idx] is not "X" and board[idx] is not "O"
+
+            (Place the piece on the board)
+            set board[idx] to player
+            set move_made to yes
+        if it fails:
+            print "Invalid spot! Please pick an open number between 1 and 9."
+
+    call print_board with board
+    add 1 to turns
+
+    (Check for victory or switch players)
+    if check_winner(board, player):
+        print "Congratulations! Player {player} wins!"
+        set game_over to yes
+    else:
+        if player is "X":
+            set player to "O"
+        else:
+            set player to "X"
+
+(--- Check for a Draw ---)
+if not game_over and turns is 9:
+    print "Cat's game! It is a draw."

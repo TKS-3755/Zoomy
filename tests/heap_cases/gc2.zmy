@@ -1,0 +1,20 @@
+Let a table be called ages
+Let a string be called key
+Let a number be called i
+Let a number be called total
+Let a number be called v
+set total to 0
+set ages to empty table
+for i from 1 to 400:
+    set key to "person {i mod 50}"
+    if ages contains key:
+        set v to ages at key
+    else:
+        set v to 0
+    put v + i in ages at key
+    set key to "scratch {i}"
+for each key in keys of ages:
+    add ages at key to total
+print total
+print length of ages
+print ages at "person 7"

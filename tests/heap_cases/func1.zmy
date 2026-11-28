@@ -1,0 +1,32 @@
+define greet with name:
+    give back "Hello, {name}!"
+define shout with s:
+    give back uppercase of s + "!"
+define total with xs:
+    Let a number be called t
+    Let a number be called x
+    set t to 0
+    for each x in xs:
+        add x to t
+    give back t
+define evens with xs:
+    Create an array named out
+    Let a number be called x
+    set out to empty list
+    for each x in xs:
+        if x mod 2 is 0:
+            append x to out
+    give back out
+print greet("World")
+print shout("hey")
+print total([1, 2, 3, 4])
+print evens([1, 2, 3, 4, 5, 6])
+print length of evens([1, 2, 3, 4])
+define repeat_text with s and n:
+    Let a string be called out
+    Let a number be called i
+    set out to ""
+    for i from 1 to n:
+        add s to out
+    give back out
+print repeat_text("ab", 3)

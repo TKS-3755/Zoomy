@@ -1,0 +1,24 @@
+(Zoomy 5: the same language, written the way a manual reads.)
+Create an array named scores
+Let a number be called goal
+Let a number be called passed
+
+Please set scores to 72, 88, 95, 40.
+Set goal to fifty.
+First, put 61 at the end of scores.
+scores must contain 95.
+goal should be at least 10.
+
+for each score in scores that are above goal:
+    add 1 to passed
+
+Is passed at least 3?
+How many scores are above 80?
+Print "all clear" if all of scores are above 30.
+if there are no scores:
+    print "nothing to do"
+else if any of scores are below 50:
+    print "somebody needs help"
+otherwise print "everyone is fine"
+
+Show "Good luck" twice.

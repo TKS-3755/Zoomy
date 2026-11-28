@@ -1,0 +1,5 @@
+Let a number be called x
+set x to 3
+print "start"
+check that x is below 2 because "x must be small"
+print "never"

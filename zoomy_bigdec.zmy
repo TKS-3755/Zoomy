@@ -1,0 +1,1071 @@
+(Zoomy 7 - the Big Decimals library, written in Zoomy.)
+(A Big Decimal is  sign * m * 2^e  with m a whole number of exactly 1024 bits (or 0): binary floating point. It takes 34 slots of the array bn:)
+(slots 0..31 = the 32 limbs of m, 32 bits each, lowest first;  slot 32 = the exponent e plus 4294967296;  slot 33 = the sign, 1 for minus.)
+(Every operation is computed exactly and then cut to 1024 bits. This is the same arithmetic as _bd_* in zoomy_runtime.py, step by step.)
+(It runs in unsigned 64-bit mode. Slots 0..1999 belong to the library: 0 = the value a function gives back; 40, 80, 120 = Big Decimal scratch;)
+(160, 280, 400, 520, 640, 760 = wide whole-number scratch of up to 100 limbs; 880..1699 = decimal digits; 1700 = shift scratch; 1820, 1860, 1900, 1940 = more Big Decimal scratch.)
+
+Create an array named bn with 8192 slots
+
+(============ whole numbers of n limbs ============)
+define w_zero with pd and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called lim
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pd + i
+        set item j of bn to 0
+
+define w_copy with pd and ps and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called x
+    Let a number be called lim
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to ps + i
+        set k to pd + i
+        set x to item j of bn
+        set item k of bn to x
+
+define w_iszero with pa and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called lim
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pa + i
+        set x to item j of bn
+        if x is above 0:
+            give back 0
+    give back 1
+
+(0 = less, 1 = equal, 2 = greater)
+define w_cmp with pa and pb and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called y
+    Let a number be called lim
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pa + lim
+        subtract i from j
+        set x to item j of bn
+        set j to pb + lim
+        subtract i from j
+        set y to item j of bn
+        if x is above y:
+            give back 2
+        if y is above x:
+            give back 0
+    give back 1
+
+(gives back the carry)
+define w_add with pd and pa and pb and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called carry
+    Let a number be called t
+    Let a number be called x
+    Let a number be called y
+    Let a number be called lim
+    set carry to 0
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        set t to x + y
+        add carry to t
+        set carry to t
+        shift carry right by 32 bits
+        bitwise and t with 4294967295
+        set j to pd + i
+        set item j of bn to t
+    give back carry
+
+(gives back the borrow)
+define w_sub with pd and pa and pb and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called borrow
+    Let a number be called t
+    Let a number be called x
+    Let a number be called y
+    Let a number be called lim
+    set borrow to 0
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pa + i
+        set x to item j of bn
+        set j to pb + i
+        set y to item j of bn
+        set t to x + 4294967296
+        subtract y from t
+        subtract borrow from t
+        set borrow to t
+        shift borrow right by 32 bits
+        set borrow to 1 - borrow
+        bitwise and t with 4294967295
+        set j to pd + i
+        set item j of bn to t
+    give back borrow
+
+(shift left by k bits, in an n-limb number; what falls off the top is lost)
+define w_shl with pd and pa and k and n:
+    Let a number be called q
+    Let a number be called r
+    Let a number be called i
+    Let a number be called j
+    Let a number be called d
+    Let a number be called x
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called y
+    Let a number be called lim
+    set q to k / 32
+    set r to k mod 32
+    call w_zero with 1700 and n
+    set lim to n - 1
+    for i from 0 to lim:
+        set d to i + q
+        if d is below n:
+            set j to pa + i
+            set x to item j of bn
+            set lo to x
+            shift lo left by r bits
+            bitwise and lo with 4294967295
+            set hi to x
+            set y to 32 - r
+            shift hi right by y bits
+            set j to 1700 + d
+            set y to item j of bn
+            bitwise or y with lo
+            set item j of bn to y
+            set d to d + 1
+            if d is below n:
+                set j to 1700 + d
+                set y to item j of bn
+                bitwise or y with hi
+                set item j of bn to y
+    call w_copy with pd and 1700 and n
+
+(shift right by k bits)
+define w_shr with pd and pa and k and n:
+    Let a number be called q
+    Let a number be called r
+    Let a number be called i
+    Let a number be called j
+    Let a number be called d
+    Let a number be called x
+    Let a number be called lo
+    Let a number be called hi
+    Let a number be called y
+    Let a number be called lim
+    set q to k / 32
+    set r to k mod 32
+    call w_zero with 1700 and n
+    set lim to n - 1
+    if q is below n:
+        for i from q to lim:
+            set d to i - q
+            set j to pa + i
+            set x to item j of bn
+            set lo to x
+            shift lo right by r bits
+            set j to 1700 + d
+            set y to item j of bn
+            bitwise or y with lo
+            set item j of bn to y
+            if d is above 0:
+                set hi to x
+                set y to 32 - r
+                shift hi left by y bits
+                bitwise and hi with 4294967295
+                set d to d - 1
+                set j to 1700 + d
+                set y to item j of bn
+                bitwise or y with hi
+                set item j of bn to y
+    call w_copy with pd and 1700 and n
+
+(the number of the highest set bit, or 99999 when the number is 0)
+define w_hibit with pa and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called q
+    Let a number be called lim
+    set lim to n - 1
+    for i from 0 to lim:
+        set q to lim - i
+        set j to pa + q
+        set x to item j of bn
+        if x is above 0:
+            count the leading zeros of x
+            set j to 63 - x
+            set x to q * 32
+            add j to x
+            give back x
+    give back 99999
+
+define w_getbit with pa and k:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called s
+    set j to k / 32
+    add pa to j
+    set x to item j of bn
+    set s to k mod 32
+    shift x right by s bits
+    bitwise and x with 1
+    give back x
+
+(sets bit k)
+define w_setbit with pa and k:
+    Let a number be called j
+    Let a number be called x
+    Let a number be called v
+    Let a number be called s
+    set j to k / 32
+    add pa to j
+    set x to item j of bn
+    set s to k mod 32
+    set v to 1
+    shift v left by s bits
+    bitwise or x with v
+    set item j of bn to x
+
+(multiply in place by a number below 2^32 and add a number below 2^32; gives back what carries out of the top)
+define w_muladd with pa and m and v and n:
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called carry
+    Let a number be called lim
+    set carry to v
+    set lim to n - 1
+    for i from 0 to lim:
+        set j to pa + i
+        set x to item j of bn
+        multiply x by m
+        add carry to x
+        set carry to x
+        shift carry right by 32 bits
+        bitwise and x with 4294967295
+        set item j of bn to x
+    give back carry
+
+(divide in place by a number below 2^32; gives back the remainder)
+define w_divsmall with pa and m and n:
+    Let a number be called i
+    Let a number be called q
+    Let a number be called j
+    Let a number be called x
+    Let a number be called r
+    Let a number be called cur
+    Let a number be called dq
+    Let a number be called lim
+    set r to 0
+    set lim to n - 1
+    for i from 0 to lim:
+        set q to lim - i
+        set j to pa + q
+        set x to item j of bn
+        set cur to r * 4294967296
+        add x to cur
+        set dq to cur / m
+        set r to cur mod m
+        set item j of bn to dq
+    give back r
+
+(pd gets pa * pb, as na + nb limbs; pd must not be pa or pb)
+define w_mul with pd and pa and na and pb and nb:
+    Let a number be called i
+    Let a number be called q
+    Let a number be called lim
+    Let a number be called lim2
+    Let a number be called j
+    Let a number be called k
+    Let a number be called xi
+    Let a number be called y
+    Let a number be called t
+    Let a number be called r
+    Let a number be called carry
+    Let a number be called total
+    set total to na + nb
+    call w_zero with pd and total
+    set lim to na - 1
+    set lim2 to nb - 1
+    for i from 0 to lim:
+        set j to pa + i
+        set xi to item j of bn
+        if xi is above 0:
+            set carry to 0
+            for q from 0 to lim2:
+                set j to pb + q
+                set y to item j of bn
+                set t to xi * y
+                set k to pd + i
+                add q to k
+                set r to item k of bn
+                add r to t
+                add carry to t
+                set carry to t
+                shift carry right by 32 bits
+                bitwise and t with 4294967295
+                set item k of bn to t
+            set k to pd + i
+            add nb to k
+            set item k of bn to carry
+
+(============ Big Decimals ============)
+define bd_zero with pd:
+    Let a number be called j
+    call w_zero with pd and 32
+    set j to pd + 32
+    set item j of bn to 4294967296
+    set j to pd + 33
+    set item j of bn to 0
+
+define bd_copy with pd and ps:
+    call w_copy with pd and ps and 34
+
+(1 when the number is 0: a number that is not 0 always has its top bit set)
+define bd_iszero with pa:
+    Let a number be called j
+    Let a number be called x
+    set j to pa + 31
+    set x to item j of bn
+    if x is 0:
+        give back 1
+    give back 0
+
+define bd_sign with pa:
+    Let a number be called j
+    set j to pa + 33
+    give back item j of bn
+
+define bd_exp with pa:
+    Let a number be called j
+    set j to pa + 32
+    give back item j of bn
+
+(make the Big Decimal  N * 2^(eb - 4294967296) * (-1)^s  from the n-limb whole number at pn (which is used up))
+define bd_norm with pd and s and pn and n and eb:
+    Let a number be called h
+    Let a number be called l
+    Let a number be called sh
+    Let a number be called j
+    set h to w_hibit(pn, n)
+    if h is 99999:
+        call bd_zero with pd
+        give back 0
+    set l to h + 1
+    if l is above 1024:
+        set sh to l - 1024
+        call w_shr with pn and pn and sh and n
+        add sh to eb
+    else if l is below 1024:
+        set sh to 1024 - l
+        call w_shl with pn and pn and sh and n
+        subtract sh from eb
+    set sh to 4294967296 + 1024
+    if eb is above sh:
+        fail with "a Big Decimal got too large (more than about 1e616)"
+    set sh to eb + 3072
+    if sh is below 4294967296:
+        call bd_zero with pd
+        give back 0
+    call w_copy with pd and pn and 32
+    set j to pd + 32
+    set item j of bn to eb
+    set j to pd + 33
+    set item j of bn to s
+
+(a small whole number, 0 .. 2^64 - 1)
+define bd_small with pd and v:
+    Let a number be called lo
+    Let a number be called hi
+    set lo to v
+    bitwise and lo with 4294967295
+    set hi to v
+    shift hi right by 32 bits
+    call w_zero with 160 and 34
+    set item 160 of bn to lo
+    set item 161 of bn to hi
+    call bd_norm with pd and 0 and 160 and 34 and 4294967296
+
+define bd_neg with pd and ps:
+    Let a number be called j
+    Let a number be called s
+    call bd_copy with pd and ps
+    if bd_iszero(ps) is 0:
+        set s to bd_sign(ps)
+        set s to 1 - s
+        set j to pd + 33
+        set item j of bn to s
+
+define bd_abs with pd and ps:
+    Let a number be called j
+    call bd_copy with pd and ps
+    set j to pd + 33
+    set item j of bn to 0
+
+define bd_add with pd and pa and pb:
+    Let a number be called ea
+    Let a number be called eb
+    Let a number be called e0
+    Let a number be called da
+    Let a number be called db
+    Let a number be called sa
+    Let a number be called sb
+    Let a number be called s
+    Let a number be called c
+    Let a number be called x
+    Let a number be called t
+    if bd_iszero(pa) is 1:
+        call bd_copy with pd and pb
+        give back 0
+    if bd_iszero(pb) is 1:
+        call bd_copy with pd and pa
+        give back 0
+    set ea to bd_exp(pa)
+    set eb to bd_exp(pb)
+    set t to eb + 1100
+    if ea is above t:
+        call bd_copy with pd and pa
+        give back 0
+    set t to ea + 1100
+    if eb is above t:
+        call bd_copy with pd and pb
+        give back 0
+    set e0 to ea
+    if eb is below ea:
+        set e0 to eb
+    set da to ea - e0
+    set db to eb - e0
+    set sa to bd_sign(pa)
+    set sb to bd_sign(pb)
+    call w_zero with 160 and 72
+    call w_copy with 160 and pa and 32
+    call w_shl with 160 and 160 and da and 72
+    call w_zero with 280 and 72
+    call w_copy with 280 and pb and 32
+    call w_shl with 280 and 280 and db and 72
+    if sa is sb:
+        set x to w_add(400, 160, 280, 72)
+        set s to sa
+    else:
+        set c to w_cmp(160, 280, 72)
+        if c is 1:
+            call bd_zero with pd
+            give back 0
+        if c is 2:
+            set x to w_sub(400, 160, 280, 72)
+            set s to sa
+        else:
+            set x to w_sub(400, 280, 160, 72)
+            set s to sb
+    call bd_norm with pd and s and 400 and 72 and e0
+
+define bd_sub with pd and pa and pb:
+    call bd_neg with 1820 and pb
+    call bd_add with pd and pa and 1820
+
+define bd_mul with pd and pa and pb:
+    Let a number be called s
+    Let a number be called e
+    if bd_iszero(pa) is 1:
+        call bd_zero with pd
+        give back 0
+    if bd_iszero(pb) is 1:
+        call bd_zero with pd
+        give back 0
+    set s to bd_sign(pa)
+    set e to bd_sign(pb)
+    add e to s
+    bitwise and s with 1
+    set e to bd_exp(pa)
+    set s to s
+    set e to e + bd_exp(pb)
+    subtract 4294967296 from e
+    call w_mul with 160 and pa and 32 and pb and 32
+    call bd_norm with pd and s and 160 and 64 and e
+
+define bd_div with pd and pa and pb:
+    Let a number be called s
+    Let a number be called e
+    Let a number be called step
+    Let a number be called bit
+    Let a number be called c
+    Let a number be called qb
+    Let a number be called x
+    if bd_iszero(pb) is 1:
+        fail with "division by zero"
+    if bd_iszero(pa) is 1:
+        call bd_zero with pd
+        give back 0
+    set s to bd_sign(pa)
+    set x to bd_sign(pb)
+    add x to s
+    bitwise and s with 1
+    set e to bd_exp(pa)
+    add 4294967296 to e
+    set x to bd_exp(pb)
+    subtract x from e
+    subtract 1024 from e
+    call w_zero with 160 and 34
+    call w_zero with 280 and 34
+    call w_zero with 400 and 34
+    call w_copy with 400 and pb and 32
+    for step from 0 to 2047:
+        set bit to 0
+        if step is below 1024:
+            set x to 1023 - step
+            set bit to w_getbit(pa, x)
+        set x to w_muladd(160, 2, bit, 34)
+        set c to w_cmp(160, 400, 34)
+        if c is above 0:
+            set x to w_sub(160, 160, 400, 34)
+            set qb to 2047 - step
+            if qb is below 1088:
+                call w_setbit with 280 and qb
+    call bd_norm with pd and s and 280 and 34 and e
+
+define bd_cmp with pa and pb:
+    Let a number be called za
+    Let a number be called zb
+    Let a number be called sa
+    Let a number be called sb
+    Let a number be called ea
+    Let a number be called eb
+    Let a number be called c
+    set za to bd_iszero(pa)
+    set zb to bd_iszero(pb)
+    if za is 1:
+        if zb is 1:
+            give back 1
+        set sb to bd_sign(pb)
+        if sb is 0:
+            give back 0
+        give back 2
+    if zb is 1:
+        set sa to bd_sign(pa)
+        if sa is 0:
+            give back 2
+        give back 0
+    set sa to bd_sign(pa)
+    set sb to bd_sign(pb)
+    if sa is above sb:
+        give back 0
+    if sb is above sa:
+        give back 2
+    set ea to bd_exp(pa)
+    set eb to bd_exp(pb)
+    set c to 1
+    if ea is above eb:
+        set c to 2
+    else if eb is above ea:
+        set c to 0
+    else:
+        set c to w_cmp(pa, pb, 32)
+    if sa is 1:
+        set c to 2 - c
+    give back c
+
+(the whole part of |pa| into the 64-limb number at pw; gives back 1 when |pa| has a fraction)
+define bd_intpart with pa and pw:
+    Let a number be called e
+    Let a number be called sh
+    Let a number be called q
+    Let a number be called r
+    Let a number be called i
+    Let a number be called j
+    Let a number be called x
+    Let a number be called frac
+    call w_zero with pw and 64
+    if bd_iszero(pa) is 1:
+        give back 0
+    set e to bd_exp(pa)
+    if e is above 4294967295:
+        call w_copy with pw and pa and 32
+        set sh to e - 4294967296
+        call w_shl with pw and pw and sh and 64
+        give back 0
+    set sh to 4294967296 - e
+    if sh is above 1024:
+        give back 1
+    call w_copy with pw and pa and 32
+    set frac to 0
+    set q to sh / 32
+    set r to sh mod 32
+    for i from 0 to q:
+        if i is below 32:
+            set j to pa + i
+            set x to item j of bn
+            if i is below q:
+                if x is above 0:
+                    set frac to 1
+            else:
+                set j to 1
+                shift j left by r bits
+                subtract 1 from j
+                bitwise and x with j
+                if x is above 0:
+                    set frac to 1
+    call w_shr with pw and pw and sh and 64
+    give back frac
+
+define bd_floor with pd and pa:
+    Let a number be called s
+    Let a number be called frac
+    Let a number be called x
+    set s to bd_sign(pa)
+    set frac to bd_intpart(pa, 400)
+    if s is 1:
+        if frac is 1:
+            set x to w_muladd(400, 1, 1, 64)
+    call bd_norm with pd and s and 400 and 64 and 4294967296
+
+define bd_ceil with pd and pa:
+    Let a number be called s
+    Let a number be called frac
+    Let a number be called x
+    set s to bd_sign(pa)
+    set frac to bd_intpart(pa, 400)
+    if s is 0:
+        if frac is 1:
+            set x to w_muladd(400, 1, 1, 64)
+    call bd_norm with pd and s and 400 and 64 and 4294967296
+
+define bd_trunc with pd and pa:
+    Let a number be called s
+    Let a number be called frac
+    set s to bd_sign(pa)
+    set frac to bd_intpart(pa, 400)
+    call bd_norm with pd and s and 400 and 64 and 4294967296
+
+(halves round away from zero)
+define bd_round with pd and pa:
+    Let a number be called s
+    Let a number be called frac
+    Let a number be called x
+    Let a number be called sh
+    Let a number be called b
+    set s to bd_sign(pa)
+    set frac to bd_intpart(pa, 400)
+    if bd_iszero(pa) is 0:
+        set sh to bd_exp(pa)
+        if sh is below 4294967296:
+            set sh to 4294967296 - sh
+            if sh is below 1025:
+                set sh to sh - 1
+                set b to w_getbit(pa, sh)
+                if b is 1:
+                    set x to w_muladd(400, 1, 1, 64)
+    call bd_norm with pd and s and 400 and 64 and 4294967296
+
+(a - b * floor(a / b), and a - b * trunc(a / b))
+define bd_mod with pd and pa and pb:
+    call bd_div with 40 and pa and pb
+    call bd_floor with 80 and 40
+    call bd_mul with 120 and pb and 80
+    call bd_sub with pd and pa and 120
+
+define bd_rem with pd and pa and pb:
+    call bd_div with 40 and pa and pb
+    call bd_trunc with 80 and 40
+    call bd_mul with 120 and pb and 80
+    call bd_sub with pd and pa and 120
+
+define bd_sqrt with pd and pa:
+    Let a number be called e
+    Let a number be called hb
+    Let a number be called p
+    Let a number be called c
+    Let a number be called x
+    if bd_iszero(pa) is 1:
+        call bd_zero with pd
+        give back 0
+    if bd_sign(pa) is 1:
+        fail with "the square root of a negative number"
+    set e to bd_exp(pa)
+    call w_zero with 160 and 66
+    set x to 160 + 32
+    call w_copy with x and pa and 32
+    set x to e mod 2
+    if x is 1:
+        call w_shl with 160 and 160 and 1 and 66
+        set e to e - 1
+    call w_zero with 280 and 66
+    call w_zero with 400 and 66
+    set hb to w_hibit(160, 66)
+    set x to hb mod 2
+    set p to hb - x
+    call w_setbit with 400 and p
+    repeat forever:
+        if w_iszero(400, 66) is 1:
+            stop
+        set x to w_add(520, 280, 400, 66)
+        set c to w_cmp(160, 520, 66)
+        if c is above 0:
+            set x to w_sub(160, 160, 520, 66)
+            call w_shr with 280 and 280 and 1 and 66
+            set x to w_add(280, 280, 400, 66)
+        else:
+            call w_shr with 280 and 280 and 1 and 66
+        call w_shr with 400 and 400 and 2 and 66
+    set e to e + 4294967296
+    set e to e / 2
+    subtract 512 from e
+    call bd_norm with pd and 0 and 280 and 66 and e
+
+define bd_pow with pd and pa and pb:
+    Let a number be called frac
+    Let a number be called nb
+    Let a number be called nz
+    Let a number be called x
+    set nb to bd_sign(pb)
+    set frac to bd_intpart(pb, 760)
+    if frac is 1:
+        fail with "Big Decimals can only be raised to whole-number powers"
+    set nz to w_iszero(760, 64)
+    call bd_small with 40 and 1
+    call bd_copy with 80 and pa
+    repeat forever:
+        if w_iszero(760, 64) is 1:
+            stop
+        set x to w_getbit(760, 0)
+        if x is 1:
+            call bd_mul with 40 and 40 and 80
+        call w_shr with 760 and 760 and 1 and 64
+        if w_iszero(760, 64) is 1:
+            stop
+        call bd_mul with 80 and 80 and 80
+    if nb is 1:
+        if nz is 0:
+            call bd_small with 80 and 1
+            call bd_div with pd and 80 and 40
+            give back 0
+    call bd_copy with pd and 40
+
+(an array index or a count: the value cut to a whole number when it is 0 .. 2^62 - 1, else 2^62 (which no array has))
+define bd_idx with pa:
+    Let a number be called frac
+    Let a number be called i
+    Let a number be called x
+    Let a number be called hi
+    Let a number be called lo
+    set frac to bd_intpart(pa, 640)
+    if w_iszero(640, 64) is 1:
+        give back 0
+    if bd_sign(pa) is 1:
+        give back 4611686018427387904
+    for i from 2 to 63:
+        set x to 640 + i
+        set x to item x of bn
+        if x is above 0:
+            give back 4611686018427387904
+    set hi to item 641 of bn
+    if hi is above 1073741823:
+        give back 4611686018427387904
+    set lo to item 640 of bn
+    shift hi left by 32 bits
+    bitwise or lo with hi
+    give back lo
+
+(1 when the whole part of the number is below 0)
+define bd_negtrunc with pa:
+    Let a number be called frac
+    if bd_sign(pa) is 0:
+        give back 0
+    set frac to bd_intpart(pa, 640)
+    if w_iszero(640, 64) is 1:
+        give back 0
+    give back 1
+
+(the whole part as 64 bits, two's complement)
+define bd_low with pa:
+    Let a number be called frac
+    Let a number be called hi
+    Let a number be called lo
+    set frac to bd_intpart(pa, 640)
+    set hi to item 641 of bn
+    set lo to item 640 of bn
+    shift hi left by 32 bits
+    bitwise or lo with hi
+    if bd_sign(pa) is 1:
+        set lo to 0 - lo
+    give back lo
+
+(---- text ----)
+(prints the number: at most 110 significant digits, rounded, no trailing zeros, never an exponent)
+define bd_print with pa:
+    Let a number be called frac
+    Let a number be called nd
+    Let a number be called chunks
+    Let a number be called k
+    Let a number be called r
+    Let a number be called p
+    Let a number be called d
+    Let a number be called j
+    Let a number be called started
+    Let a number be called pint
+    Let a number be called zeros
+    Let a number be called e
+    Let a number be called nf
+    Let a number be called x
+    Let a number be called pt
+    Let a number be called tn
+    Let a number be called up
+    if bd_iszero(pa) is 1:
+        write "0"
+        give back 0
+    if bd_sign(pa) is 1:
+        write "-"
+    set frac to bd_intpart(pa, 160)
+    set nd to 0
+    set started to 0
+    if w_iszero(160, 64) is 0:
+        call w_copy with 400 and 160 and 64
+        set chunks to 0
+        repeat forever:
+            set r to w_divsmall(400, 1000000000, 64)
+            set j to 1600 + chunks
+            set item j of bn to r
+            add 1 to chunks
+            if w_iszero(400, 64) is 1:
+                stop
+        set k to chunks
+        repeat chunks times:
+            subtract 1 from k
+            set j to 1600 + k
+            set r to item j of bn
+            set p to 100000000
+            repeat 9 times:
+                set d to r / p
+                set r to r mod p
+                set p to p / 10
+                if d is above 0:
+                    set started to 1
+                if started is 1:
+                    set j to 880 + nd
+                    set item j of bn to d
+                    add 1 to nd
+    set pint to nd
+    set zeros to 0
+    set e to bd_exp(pa)
+    if e is below 4294967296:
+        set k to 4294967296 - e
+        set nf to k + 31
+        set nf to nf / 32
+        if nf is below 32:
+            set nf to 32
+        call w_zero with 520 and nf
+        call w_copy with 520 and pa and 32
+        set x to nf * 32
+        subtract k from x
+        call w_shl with 520 and 520 and x and nf
+        repeat forever:
+            if nd is above 110:
+                stop
+            if w_iszero(520, nf) is 1:
+                stop
+            set d to w_muladd(520, 10, 0, nf)
+            if started is 0:
+                if d is 0:
+                    add 1 to zeros
+                else:
+                    set started to 1
+            if started is 1:
+                set j to 880 + nd
+                set item j of bn to d
+                add 1 to nd
+    set pt to 100000
+    if pint is above 0:
+        add pint to pt
+    else:
+        subtract zeros from pt
+    if nd is above 110:
+        set j to 880 + 110
+        set d to item j of bn
+        set nd to 110
+        if d is above 4:
+            set k to 109
+            set up to 1
+            repeat forever:
+                set j to 880 + k
+                set d to item j of bn
+                if d is not 9:
+                    set d to d + 1
+                    set item j of bn to d
+                    set up to 0
+                    stop
+                set item j of bn to 0
+                if k is 0:
+                    stop
+                subtract 1 from k
+            if up is 1:
+                set item 880 of bn to 1
+                add 1 to pt
+    if pt is above 100000:
+        set pint to pt - 100000
+    else:
+        set pint to 0
+    if pint is above 0:
+        if pint is not below nd:
+            set k to 0
+            repeat nd times:
+                set j to 880 + k
+                set d to item j of bn
+                add 48 to d
+                write char d
+                add 1 to k
+            set k to pint - nd
+            repeat k times:
+                write "0"
+            give back 0
+        set tn to nd
+        repeat forever:
+            if tn is not above pint:
+                stop
+            set j to 880 + tn - 1
+            set d to item j of bn
+            if d is above 0:
+                stop
+            subtract 1 from tn
+        set k to 0
+        repeat pint times:
+            set j to 880 + k
+            set d to item j of bn
+            add 48 to d
+            write char d
+            add 1 to k
+        if tn is above pint:
+            write "."
+            repeat forever:
+                if k is not below tn:
+                    stop
+                set j to 880 + k
+                set d to item j of bn
+                add 48 to d
+                write char d
+                add 1 to k
+        give back 0
+    write "0."
+    set k to 100000 - pt
+    repeat k times:
+        write "0"
+    set tn to nd
+    repeat forever:
+        if tn is 0:
+            stop
+        set j to 880 + tn - 1
+        set d to item j of bn
+        if d is above 0:
+            stop
+        subtract 1 from tn
+    set k to 0
+    repeat forever:
+        if k is not below tn:
+            stop
+        set j to 880 + k
+        set d to item j of bn
+        add 48 to d
+        write char d
+        add 1 to k
+
+(reads a number the way `read x` does; gives back 1 when it worked, 0 when it did not)
+define bd_unread with c:
+    set c to c
+
+define bd_read with pd:
+    Let a number be called c
+    Let a number be called w
+    Let a number be called neg
+    Let a number be called digits
+    Let a number be called frac
+    Let a number be called extra
+    Let a number be called dot
+    Let a number be called v
+    Let a number be called x
+    Let a number be called pend
+    set pend to 0
+    call bd_zero with pd
+    set neg to 0
+    set digits to 0
+    set frac to 0
+    set extra to 0
+    set dot to 0
+    call w_zero with 160 and 34
+    repeat forever:
+        read the next byte into c
+        if input_ok is 0:
+            give back 0
+        set w to 0
+        if c is 32:
+            set w to 1
+        if c is above 8:
+            if c is below 14:
+                set w to 1
+        if w is 0:
+            stop
+    if c is 45:
+        set neg to 1
+        read the next byte into c
+        if input_ok is 0:
+            set c to 4294967295
+    else if c is 43:
+        read the next byte into c
+        if input_ok is 0:
+            set c to 4294967295
+    repeat forever:
+        if c is 46:
+            if dot is 0:
+                set dot to 1
+                read the next byte into c
+                if input_ok is 0:
+                    stop
+                skip
+        if c is above 57:
+            set pend to 1
+            stop
+        if c is below 48:
+            set pend to 1
+            stop
+        add 1 to digits
+        if digits is below 301:
+            set v to c - 48
+            set x to w_muladd(160, 10, v, 34)
+            if dot is 1:
+                add 1 to frac
+        else:
+            if dot is 0:
+                add 1 to extra
+        read the next byte into c
+        if input_ok is 0:
+            stop
+    if digits is 0:
+        give back 0
+    if pend is 1:
+        call bd_unread with c
+    call bd_norm with pd and 0 and 160 and 34 and 4294967296
+    if frac is above 0:
+        call bd_small with 1860 and 10
+        call bd_small with 1900 and frac
+        call bd_pow with 1940 and 1860 and 1900
+        call bd_div with pd and pd and 1940
+    else if extra is above 0:
+        call bd_small with 1860 and 10
+        call bd_small with 1900 and extra
+        call bd_pow with 1940 and 1860 and 1900
+        call bd_mul with pd and pd and 1940
+    if neg is 1:
+        call bd_neg with pd and pd
+    give back 1

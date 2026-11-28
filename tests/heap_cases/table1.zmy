@@ -1,0 +1,23 @@
+Let a table be called t
+Let a string be called k
+set t to table with "a" as 1 and "b" as 2
+put 5 in t at "c"
+print t
+print t at "a"
+add 10 to t at "a"
+print t at "a"
+if t contains "b":
+    print "has b"
+if t contains "z":
+    print "has z"
+else:
+    print "no z"
+for each k in keys of t:
+    print k, "=", t at k
+print values of t
+print sum of values of t
+remove "b" from t
+print t
+print length of t
+set t to empty table
+print t

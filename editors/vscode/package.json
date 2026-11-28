@@ -1,0 +1,23 @@
+{
+  "name": "zoomy",
+  "displayName": "Zoomy",
+  "description": "Zoomy (the pseudocode that compiles): syntax colours, plus errors, quick fixes, hover and formatting through tools/zoomy_lsp.py",
+  "version": "8.1.0",
+  "publisher": "zoomy",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:zoomy"],
+  "dependencies": { "vscode-languageclient": "^8.1.0" },
+  "contributes": {
+    "languages": [{ "id": "zoomy", "aliases": ["Zoomy", "zoomy"], "extensions": [".zmy"], "configuration": "./language-configuration.json" }],
+    "grammars": [{ "language": "zoomy", "scopeName": "source.zoomy", "path": "./syntaxes/zoomy.tmLanguage.json" }],
+    "configuration": {
+      "title": "Zoomy",
+      "properties": {
+        "zoomy.serverPath": { "type": "string", "default": "", "description": "Path to tools/zoomy_lsp.py (leave empty to look for it in the open folder)" },
+        "zoomy.python": { "type": "string", "default": "python3", "description": "Python used to run the language server" }
+      }
+    }
+  }
+}

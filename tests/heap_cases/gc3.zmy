@@ -1,0 +1,27 @@
+Let a string be called s
+Let a number be called i
+Let a number be called total
+Create an array named words
+define shout with w:
+    give back uppercase of w + "!"
+define build with n:
+    Let a string be called r
+    Let a number be called k
+    set r to ""
+    for k from 1 to n:
+        set r to "{r}{k}"
+    give back r
+set total to 0
+for i from 1 to 150:
+    set s to shout("word{i}")
+    append s to words
+    set s to build(12)
+    add length of s to total
+print total
+print length of words
+print the last of words
+print words at 10
+for i from 1 to 100:
+    set s to "later {i}"
+print s
+print words at 149

@@ -1,0 +1,209 @@
+
+(Port of init_enc_info - reads the piece order of one side of one table from the header)
+define tb_init_enc with eb and foff and shf and t:
+    Let a number be called morep
+    Let a number be called i
+    Let a number be called j
+    Let a number be called k
+    Let a number be called order
+    Let a number be called order2
+    Let a number be called n
+    Let a number be called f
+    Let a number be called v
+    Let a number be called n0
+    Let a number be called nk
+    set morep to 0
+    if tb_haspawns is 1 and tb_p1 is greater than 0:
+        set morep to 1
+    for i from 0 to tb_num - 1:
+        set v to tb_at8(foff + i + 1 + morep)
+        if shf is 4:
+            set v to v / 16
+        else:
+            set v to v mod 16
+        set item (eb + i) of tb_pool to v
+        set item (eb + 7 + i) of tb_pool to 0
+    set v to tb_at8(foff)
+    if shf is 4:
+        set order to v / 16
+    else:
+        set order to v mod 16
+    set order2 to 15
+    if morep is 1:
+        set v to tb_at8(foff + 1)
+        if shf is 4:
+            set order2 to v / 16
+        else:
+            set order2 to v mod 16
+    if tb_haspawns is 1:
+        set k to tb_p0
+    else if tb_kkenc is 1:
+        set k to 2
+    else:
+        set k to 3
+    set item (eb + 7) of tb_pool to k
+    if morep is 1:
+        set item (eb + 7 + k) of tb_pool to tb_p1
+        add tb_p1 to k
+    set i to k
+    while i is less than tb_num:
+        set j to i
+        while j is less than tb_num and item (eb + j) of tb_pool is item (eb + i) of tb_pool:
+            add 1 to item (eb + 7 + i) of tb_pool
+            add 1 to j
+        add item (eb + 7 + i) of tb_pool to i
+    set n to 64 - k
+    set f to 1
+    set i to 0
+    set n0 to item (eb + 7) of tb_pool
+    while k is less than tb_num or i is order or i is order2:
+        if i is order:
+            set item (eb + 14) of tb_pool to f
+            if tb_haspawns is 1:
+                set f to f * item (((n0 - 1) * 4) + t) of tb_pff
+            else if tb_kkenc is 1:
+                set f to f * 462
+            else:
+                set f to f * 31332
+        else if i is order2:
+            set item (eb + 14 + n0) of tb_pool to f
+            set f to f * tb_subfactor(item (eb + 7 + n0) of tb_pool, 48 - n0)
+        else:
+            set nk to item (eb + 7 + k) of tb_pool
+            set item (eb + 14 + k) of tb_pool to f
+            set f to f * tb_subfactor(nk, n)
+            subtract nk from n
+            add nk to k
+        add 1 to i
+    give back f
+
+(Port of setup_pairs - the compressed-block header at foff.  Leaves the position after itab in tb_np and)
+(the three region sizes in tb_sz0 tb_sz1 tb_sz2.  The symbol tables are read later, on first use.)
+define tb_setup_pairs with foff and tbsize and type:
+    Let a number be called pr
+    Let a number be called flags
+    Let a number be called blk
+    Let a number be called ib
+    Let a number be called real
+    Let a number be called nblocks
+    Let a number be called maxl
+    Let a number be called minl
+    Let a number be called h
+    Let a number be called nsyms
+    Let a number be called x
+    Let a number be called pw
+    set pr to tb_alloc(112)
+    set flags to tb_at8(foff)
+    set item (pr + 7) of tb_pool to flags
+    if flags is at least 128:
+        set item (pr + 0) of tb_pool to 1
+        set item (pr + 1) of tb_pool to 0
+        set item (pr + 6) of tb_pool to 0
+        if type is 0:
+            set item (pr + 6) of tb_pool to tb_at8(foff + 1)
+        set tb_np to foff + 2
+        set tb_sz0 to 0
+        set tb_sz1 to 0
+        set tb_sz2 to 0
+        give back pr
+    set blk to tb_at8(foff + 1)
+    set ib to tb_at8(foff + 2)
+    set real to tb_at32(foff + 4)
+    set nblocks to real + tb_at8(foff + 3)
+    set maxl to tb_at8(foff + 8)
+    set minl to tb_at8(foff + 9)
+    set h to (maxl - minl) + 1
+    if h is greater than 48 or h is less than 1:
+        give back -1
+    set nsyms to tb_at16(foff + 10 + (2 * h))
+    for i from 0 to h - 1:
+        set item (pr + 14 + i) of tb_pool to tb_at16(foff + 10 + (2 * i))
+    set item (pr + 0) of tb_pool to 0
+    set item (pr + 1) of tb_pool to ib
+    set item (pr + 2) of tb_pool to blk
+    set item (pr + 3) of tb_pool to minl
+    set item (pr + 4) of tb_pool to h
+    set item (pr + 5) of tb_pool to nsyms
+    set item (pr + 11) of tb_pool to foff + 12 + (2 * h)
+    set tb_np to foff + 12 + (2 * h) + (3 * nsyms) + (nsyms mod 2)
+    set pw to 1
+    shift pw left by ib bits
+    set x to (tbsize + pw) - 1
+    shift x right by ib bits
+    set tb_sz0 to 6 * x
+    set tb_sz1 to 2 * nblocks
+    set x to real
+    shift x left by blk bits
+    set tb_sz2 to x
+    give back pr
+
+(Symbol length, by recursion over the symbol pairs)
+define tb_symlen with pr and s:
+    Let a number be called w
+    Let a number be called s1
+    Let a number be called s2
+    Let a number be called slen
+    Let a number be called spat
+    Let a number be called slbase
+    set spat to item (pr + 13) of tb_pool
+    set slbase to item (pr + 12) of tb_pool
+    set w to item (spat + s) of tb_pool
+    set s2 to ((w / 65536) * 16) + (((w / 256) mod 256) / 16)
+    if s2 is 4095:
+        set item (slbase + s) of tb_pool to 1
+        give back 0
+    set s1 to (((w / 256) mod 16) * 256) + (w mod 256)
+    if item (slbase + s1) of tb_pool is 0:
+        call tb_symlen with pr and s1
+    if item (slbase + s2) of tb_pool is 0:
+        call tb_symlen with pr and s2
+    set slen to (item (slbase + s1) of tb_pool - 1) + (item (slbase + s2) of tb_pool - 1) + 1
+    set item (slbase + s) of tb_pool to slen + 1
+    give back slen
+
+(First use of a pair - read the symbol table, work out the symbol lengths and the code bases)
+define tb_pair_prep with pr:
+    Let a number be called ns
+    Let a number be called spat
+    Let a number be called slen
+    Let a number be called b0
+    Let a number be called b1
+    Let a number be called b2
+    Let a number be called h
+    Let a number be called mlen
+    Let a number be called bs
+    Let a number be called nx
+    Let a number be called sh
+    set ns to item (pr + 5) of tb_pool
+    set slen to tb_alloc(ns + 2)
+    set spat to tb_alloc(ns + 2)
+    set item (pr + 12) of tb_pool to slen
+    set item (pr + 13) of tb_pool to spat
+    move to byte (item (pr + 11) of tb_pool) of the file
+    for s from 0 to ns - 1:
+        read the next byte into b0
+        read the next byte into b1
+        read the next byte into b2
+        set item (spat + s) of tb_pool to b0 + (b1 * 256) + (b2 * 65536)
+        set item (slen + s) of tb_pool to 0
+    for s from 0 to ns - 1:
+        if item (slen + s) of tb_pool is 0:
+            call tb_symlen with pr and s
+    set h to item (pr + 4) of tb_pool
+    set mlen to item (pr + 3) of tb_pool
+    set bs to 0
+    set item (pr + 62 + h - 1) of tb_pool to tb_min
+    for i from h - 2 to 0 step -1:
+        set nx to bs + item (pr + 14 + i) of tb_pool - item (pr + 15 + i) of tb_pool
+        set bs to nx / 2
+        set sh to 64 - (mlen + i)
+        set nx to bs
+        shift nx left by sh bits
+        bitwise xor nx with tb_min
+        set item (pr + 62 + i) of tb_pool to nx
+    set sh to 64 - (mlen + h - 1)
+    set nx to 0
+    bitwise xor nx with tb_min
+    set item (pr + 62 + h - 1) of tb_pool to nx
+    set item (pr + 0) of tb_pool to 1
+    give back 0

@@ -1,0 +1,105 @@
+(--- nodoom/raycast.zmy : Digital Differential Analyzer ---)
+
+include nodoom's core
+
+routine cast_single_ray:
+    (Input: ray_col (0 to 39))
+    (Compute offset angle from camera center for 60-degree FOV ~ 1.047 rad)
+    Structurally:
+        Let a number be called ray_offset
+        set ray_offset to (ray_col / 40.0 - 0.5) * 1.0472
+        Let a number be called r_angle
+        set r_angle to player_angle + ray_offset
+
+    Let a number be called x
+    set x to r_angle
+    run cos_taylor
+    Let a number be called ray_dir_x
+    set ray_dir_x to cos_val
+
+    set x to r_angle
+    run sin_taylor
+    Let a number be called ray_dir_y
+    set ray_dir_y to sin_val
+
+    (Ray march through grid)
+    Let a number be called ray_dist
+    set ray_dist to 0.1
+    Let a number be called hit_wall
+    set hit_wall to 0.0
+    while hit_wall is 0.0:
+        Structurally:
+            Let a number be called sample_x
+            set sample_x to player_x + ray_dir_x * ray_dist
+            Let a number be called sample_y
+            set sample_y to player_y + ray_dir_y * ray_dist
+            Let a number be called g_x
+            set g_x to floor of sample_x
+            Let a number be called g_y
+            set g_y to floor of sample_y
+
+        if g_x is at least 0.0:
+            if g_x is at most 15.0:
+                if g_y is at least 0.0:
+                    if g_y is at most 15.0:
+                        Structurally:
+                            Let a number be called c_idx
+                            set c_idx to g_y * 16.0 + g_x
+                        Let a number be called cell
+                        load from wad_map at index c_idx into cell
+                        if cell is 1.0:
+                            set hit_wall to 1.0
+
+        if hit_wall is 0.0:
+            add 0.1 to ray_dist
+            if ray_dist is greater than 16.0:
+                set hit_wall to 1.0
+
+    (Fish-eye correction: dist * cos(ray_offset))
+    set x to ray_offset
+    run cos_taylor
+    Structurally:
+        Let a number be called corrected_dist
+        set corrected_dist to ray_dist * cos_val
+
+    (Projected wall height: screen height 20 / dist)
+    Structurally:
+        Let a number be called wall_h
+        set wall_h to floor of (14.0 / corrected_dist)
+    if wall_h is greater than 18.0:
+        set wall_h to 18.0
+
+    (Select ASCII texture based on depth)
+    Let a number be called wall_char
+    set wall_char to 35.0    (#)
+    if corrected_dist is greater than 3.0:
+        set wall_char to 88.0    (X)
+    if corrected_dist is greater than 6.0:
+        set wall_char to 61.0    (=)
+    if corrected_dist is greater than 10.0:
+        set wall_char to 58.0    (:)
+
+    (Rasterize vertical column into screen array)
+    Structurally:
+        Let a number be called wall_top
+        set wall_top to floor of ((20.0 - wall_h) / 2.0)
+        Let a number be called wall_bot
+        set wall_bot to wall_top + wall_h
+
+    Let a number be called row
+    set row to 0.0
+    while row is less than 20.0:
+        Structurally:
+            Let a number be called pixel_idx
+            set pixel_idx to row * 40.0 + ray_col
+        Let a number be called pixel_char
+        set pixel_char to 32.0    (Ceiling: space)
+
+        if row is at least wall_top:
+            if row is at most wall_bot:
+                set pixel_char to wall_char
+        if row is greater than wall_bot:
+            set pixel_char to 46.0    (Floor: dot)
+
+        store pixel_char in screen at index pixel_idx
+        add 1.0 to row

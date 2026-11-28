@@ -1,0 +1,14 @@
+Let a string be called s
+Let a number be called n
+set s to "a,b,,c"
+Create an array named parts
+set parts to split s by ","
+print parts
+print length of parts
+set n to number from "  42.5  "
+print n + 1
+print "big: ", 123456789012, " small: ", 0.000001234, " tiny ", 1e-9, " huge ", 1e21
+print "{1e21} {0.000001234} {100000.5} {-3}"
+print text of 3.14159265
+print text of [1, 2]
+print "nothing ", length of ""

@@ -1,0 +1,120 @@
+(Calculator in Zoomy.)
+(Type expressions like   12 + 3.5   or   2 ^ 10   or   9 % 4   and press Enter.)
+(Operators: + - * / % ^      Type  q  to quit (end of input also quits).)
+include nocalc's math
+
+action start:
+    print "Zoomy calculator. Example: 2 + 3   (q to quit)"
+    Let a number be called running
+    set running to 1.0
+    while running is 1.0:
+        Let a number be called c
+        read the next character into c
+        if input_ok is 0.0:
+            set running to 0.0
+        else:
+            if c is 'q':
+                set running to 0.0
+            else:
+                (c is the first character of the first number (a digit or a sign).)
+                (We read the rest of the number character by character, so that 'q' can be told apart.)
+                Let a number be called a_
+                set a_ to 0.0
+                Let a number be called neg
+                set neg to 0.0
+                Let a number be called have_digit
+                set have_digit to 0.0
+                if c is '-':
+                    set neg to 1.0
+                if c is '+':
+                    set neg to 0.0
+                Let a number be called d
+                set d to c
+                subtract 48.0 from d
+                if d is at least 0.0:
+                    if d is at most 9.0:
+                        set a_ to d
+                        set have_digit to 1.0
+                (keep reading digits (and a fraction) of the first number)
+                Let a number be called scale
+                set scale to 1.0
+                Let a number be called after_dot
+                set after_dot to 0.0
+                Let a number be called reading
+                set reading to 1.0
+                Let a number be called c2
+                while reading is 1.0:
+                    read the next character into c2
+                    if input_ok is 0.0:
+                        set reading to 0.0
+                    else:
+                        set d to c2
+                        subtract 48.0 from d
+                        if d is at least 0.0:
+                            if d is at most 9.0:
+                                set have_digit to 1.0
+                                if after_dot is 1.0:
+                                    divide scale by 10.0
+                                    multiply d by scale
+                                    add d to a_
+                                else:
+                                    multiply a_ by 10.0
+                                    add d to a_
+                            else:
+                                set reading to 0.0
+                        else:
+                            if c2 is '.':
+                                set after_dot to 1.0
+                            else:
+                                set reading to 0.0
+                if neg is 1.0:
+                    multiply a_ by -1.0
+                (c2 holds the operator that ended the number)
+                Let a number be called op
+                set op to c2
+                Let a number be called b
+                read b
+                Let a number be called ok
+                set ok to 1.0
+                Let a number be called r
+                set r to 0.0
+                Let a number be called known
+                set known to 0.0
+                if op is '+':
+                    set r to a_
+                    add b to r
+                    set known to 1.0
+                if op is '-':
+                    set r to a_
+                    subtract b from r
+                    set known to 1.0
+                if op is '*':
+                    set r to a_
+                    multiply r by b
+                    set known to 1.0
+                if op is '/':
+                    set known to 1.0
+                    if b is 0.0:
+                        set ok to 0.0
+                    else:
+                        set r to a_
+                        divide r by b
+                if op is '%':
+                    set known to 1.0
+                    if b is 0.0:
+                        set ok to 0.0
+                    else:
+                        calculate remainder of a_ divided by b and store the result in r
+                if op is '^':
+                    set known to 1.0
+                    set base to a_
+                    set exponent to b
+                    run power
+                    set r to result
+                if known is 0.0:
+                    print "unknown operator: ", char op
+                else:
+                    if ok is 0.0:
+                        print "error: division by zero"
+                    else:
+                        print a_, " ", char op, " ", b, " = ", r

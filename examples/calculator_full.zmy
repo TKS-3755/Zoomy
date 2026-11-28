@@ -1,0 +1,41 @@
+(A calculator that understands whole lines like  "12 * 3.5"  or  "2 ^ 10".  Type  quit  to stop.)
+define calculate_line with line:
+    Let a value be called parts
+    set parts to split trim of line by " "
+    if length of parts is not 3:
+        fail with "please type: number operator number (for example 2 + 3)"
+    Let a number be called a_
+    set a_ to number from item 0 of parts
+    Let a number be called b
+    set b to number from item 2 of parts
+    Let a value be called op
+    set op to item 1 of parts
+    if op is "+":
+        give back a_ + b
+    else if op is "-":
+        give back a_ - b
+    else if op is "*" or op is "x":
+        give back a_ * b
+    else if op is "/":
+        if b is 0:
+            fail with "cannot divide by zero"
+        give back a_ / b
+    else if op is "^":
+        give back a_ ^ b
+    else if op is "%":
+        give back a_ mod b
+    fail with "unknown operator {op}"
+
+print "Zoomy calculator. Examples: 2 + 3, 12 * 3.5, 2 ^ 10, 9 % 4. Type quit to stop."
+Let a flag be called running
+set running to yes
+while running:
+    Let a string be called line
+    set line to ask "> "
+    if input_ok is 0 or trim of line is "quit":
+        set running to no
+    else if trim of line is not "":
+        try:
+            print "= ", calculate_line(line)
+        if it fails:
+            print "Oops: ", problem

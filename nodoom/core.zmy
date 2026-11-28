@@ -1,0 +1,12 @@
+(NoDoom core: the map, the screen and the player, shared by every NoDoom file.)
+include nocalc's math
+
+Create an array named wad_map with 256 slots
+Create an array named screen with 800 slots
+
+Let a number be called player_x
+Let a number be called player_y
+Let a number be called player_angle
+Let a number be called move_dir
+Let a number be called rot_dir
+Let a number be called ray_col

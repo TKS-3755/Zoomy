@@ -1,0 +1,41 @@
+{
+ "scopeName": "source.zoomy",
+ "name": "Zoomy",
+ "patterns": [
+  {
+   "name": "comment.line.zoomy",
+   "match": "^\\s*\\(.*\\)\\s*$|(?<=\\s{4}|\\t)\\([^()]*\\)\\s*$"
+  },
+  {
+   "name": "string.quoted.double.zoomy",
+   "begin": "\"",
+   "end": "\"",
+   "patterns": [
+    {
+     "name": "constant.character.escape.zoomy",
+     "match": "\\\\."
+    }
+   ]
+  },
+  {
+   "name": "constant.numeric.zoomy",
+   "match": "\\b\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b"
+  },
+  {
+   "name": "constant.language.zoomy",
+   "match": "\\b(?:true|false|yes|no|yeah|nope)\\b"
+  },
+  {
+   "name": "keyword.control.zoomy",
+   "match": "\\b(?:if|else|otherwise|unless|until|while|repeat|for|each|from|to|times|define|give|back|stop|skip|finish|then|and|or|not|is|are|than|with|in|by|called|named|include|as|try|always|global)\\b"
+  },
+  {
+   "name": "support.function.zoomy",
+   "match": "\\b(?:abandon|add|advance|amplify|announce|answer|append|ask|assign|augment|bail|behold|bestow|blurt|bow|bump|bust|calculate|call|carry|cease|check|chip|chuck|clear|come|communicate|conclude|continue|convert|crank|create|curtail|declare|decrease|decrement|deduct|define|delete|deplete|designate|diminish|discontinue|display|divide|double|dump|echo|elevate|emit|end|ensure|escalate|exit|fail|finish|give|halt|halve|hand|hark|hear|holler|hop|include|increase|increment|indicate|initialise|initialize|insert|knock|leave|lessen|let|list|lo|load|lop|lower|magnify|make|multiply|output|pack|park|plop|pop|present|print|proceed|proclaim|produce|pronounce|pump|put|quit|raise|ratchet|read|recite|reduce|remove|render|reply|report|reset|respond|result|return|reverse|run|say|scale|scrape|send|set|shave|shout|shove|show|skip|slot|sort|spit|square|stash|state|stick|stop|store|subtract|tack|take|terminate|throw|toss|trim|triple|use|utter|verify|wait|warn|wrap|write|yell|yield)\\b"
+  },
+  {
+   "name": "storage.type.zoomy",
+   "match": "\\b(?:number|text|list|array|table|word|decimal)\\b"
+  }
+ ]
+}

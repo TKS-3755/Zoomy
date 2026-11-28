@@ -1,0 +1,5 @@
+Create an array named xs
+set xs to [1, 2, 3]
+print "before"
+print xs at 5
+print "after"

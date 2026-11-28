@@ -1,0 +1,60 @@
+(--- nodoom/physics.zmy : Movement & Wall Collision ---)
+
+include nodoom's core
+
+routine try_move_player:
+    (Calculate prospective position based on forward/backward impulses)
+    Let a number be called move_dist
+    set move_dist to 0.4
+    multiply move_dist by move_dir
+
+    Let a number be called x
+    set x to player_angle
+    run cos_taylor
+    Structurally:
+        Let a number be called target_x
+        set target_x to player_x + cos_val * move_dist
+
+    set x to player_angle
+    run sin_taylor
+    Structurally:
+        Let a number be called target_y
+        set target_y to player_y + sin_val * move_dist
+
+    (Sliding collision check on X axis)
+    Structurally:
+        Let a number be called check_gx
+        set check_gx to floor of target_x
+        Let a number be called check_gy
+        set check_gy to floor of player_y
+        Let a number be called check_idx
+        set check_idx to check_gy * 16.0 + check_gx
+    Let a number be called tile_x
+    load from wad_map at index check_idx into tile_x
+    if tile_x is 0.0:
+        set player_x to target_x
+
+    (Sliding collision check on Y axis)
+    Structurally:
+        set check_gx to floor of player_x
+        set check_gy to floor of target_y
+        set check_idx to check_gy * 16.0 + check_gx
+    Let a number be called tile_y
+    load from wad_map at index check_idx into tile_y
+    if tile_y is 0.0:
+        set player_y to target_y
+
+routine rotate_player:
+    (Rotate by ~15 degrees: 0.2618 radians)
+    Let a number be called rot_delta
+    set rot_delta to 0.2618
+    multiply rot_delta by rot_dir
+    add rot_delta to player_angle
+
+    (Normalize angle within 0 to 2*pi)
+    Let a number be called two_pi
+    set two_pi to 6.2831853
+    if player_angle is less than 0.0:
+        add two_pi to player_angle
+    if player_angle is at least two_pi:
+        subtract two_pi from player_angle

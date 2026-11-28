@@ -1,0 +1,40 @@
+include nocalc's core
+
+routine zeros:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        store 0.0 in arr at index i
+        add 1.0 to i
+
+routine ones:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        store 1.0 in arr at index i
+        add 1.0 to i
+
+routine fill:
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        store fill_value in arr at index i
+        add 1.0 to i
+
+routine linspace:
+    Let a number be called i
+    set i to 0.0
+    Let a number be called denom
+    set denom to size
+    subtract 1.0 from denom
+    Let a number be called step
+    set step to 0.0
+    if denom is greater than 0.0:
+        Structurally:
+            set step to (end - start) / denom
+    Let a number be called current
+    set current to start
+    while i is less than size:
+        store current in arr at index i
+        add step to current
+        add 1.0 to i

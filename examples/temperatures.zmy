@@ -1,0 +1,15 @@
+(Conversational pipelines read left to right; ordinary formulas follow the usual order of operations.)
+Let a number be called celsius
+set celsius to 100 and multiply by 9 and divide by 5 and add 32
+print "100 C is ", celsius, " F"
+
+Let a number be called f
+set f to 98.6
+Let a number be called c
+set c to (f - 32) * 5 / 9
+print "98.6 F is ", rounded c to 1 places, " C"
+
+Let a number be called a_
+Let a number be called b
+set a_ to 10 and set b to 20 and add 5 to a_ and b and multiply a_ and b by 2
+print a_, " ", b

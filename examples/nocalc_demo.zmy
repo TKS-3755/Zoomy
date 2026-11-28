@@ -1,0 +1,59 @@
+include nocalc's creation
+include nocalc's statistics
+include nocalc's linalg
+include nocalc's math
+
+action start:
+    (--- 1. Linspace Array [1.0, 2.0, 3.0, 4.0, 5.0] ---)
+    (the array 'arr' and the shared variables come from NoCalc's core)
+    set start to 1.0
+    set end to 5.0
+    set size to 5.0
+    run linspace
+    
+    (--- 2. Statistics ---)
+    run variance    (Returns mean_val (3.0) and var_result (2.0))
+    run find_min    (Returns min_val (1.0))
+    run find_max    (Returns max_val (5.0))
+    
+    (--- 3. Compute Euclidean L2 Norm ---)
+    Create an array named coord with 3 slots
+    Let a number be called idx
+    set idx to 0.0
+    Let a number be called temp_val
+    set temp_val to 3.0
+    store temp_val in coord at index idx
+    
+    set idx to 1.0
+    set temp_val to 4.0
+    store temp_val in coord at index idx
+    
+    set idx to 2.0
+    set temp_val to 0.0
+    store temp_val in coord at index idx
+    
+    set size to 3.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        load from coord at index i into temp_val
+        store temp_val in arr at index i
+        add 1.0 to i
+        
+    run vector_norm    (Returns norm_result (5.0))
+    
+    (--- 4. Trigonometric Sine sin(pi/2 ~ 1.5708) ---)
+    set x to 1.5708
+    run sin_taylor    (Returns sin_val (~1.0))
+    
+    (--- 5. Final Result ---)
+    Let a number be called final_sum
+    set final_sum to mean_val    (3.0)
+    add var_result to final_sum    (+ 2.0 = 5.0)
+    add min_val to final_sum    (+ 1.0 = 6.0)
+    add max_val to final_sum    (+ 5.0 = 11.0)
+    add norm_result to final_sum    (+ 5.0 = 16.0)
+    add sin_val to final_sum    (+ 1.0 = 17.0 (a hair less, so we round up))
+    add 0.5 to final_sum
+    
+    finish with final_sum

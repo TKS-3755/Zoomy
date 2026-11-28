@@ -1,0 +1,30 @@
+Let a string be called s
+Let a string be called t
+Let a number be called i
+Let a number be called j
+Let a number be called total
+Create an array named keep
+Create an array named names
+set total to 0
+for i from 1 to 300:
+    set s to "item {i} ok"
+    set t to "{s} and {s}"
+    if i mod 7 is 0:
+        append t to keep
+    add length of t to total
+    for j from 1 to 5:
+        set s to "tmp {i} {j}"
+        add length of s to total
+print total
+print length of keep
+print the first of keep
+print the last of keep
+for each s in keep:
+    add length of s to total
+print total
+set names to split "alpha beta gamma delta epsilon" by " "
+for i from 1 to 200:
+    set t to "garbage {i}"
+    append "n{i}" to names
+print length of names
+print names

@@ -1,0 +1,92 @@
+include nocalc's core
+
+routine range_reduce_2pi:
+    (Restricts angle 'x' to [-pi, pi] in one step, so huge angles are fast too)
+    Let a number be called two_pi
+    set two_pi to 6.283185307179586
+    Structurally:
+        set x to x - floor of ((x + pi) / two_pi) * two_pi
+
+routine sin_taylor:
+    (sin(x) = x - x^3/3! + x^5/5! - ...   (14 terms after reduction to [-pi, pi]: error below 1e-15))
+    run range_reduce_2pi
+    set sin_val to x
+    Let a number be called sn_term
+    set sn_term to x
+    Let a number be called sn_k
+    set sn_k to 1.0
+    while sn_k is less than 28.0:
+        Structurally:
+            set sn_term to -sn_term * x ^ 2 / ((sn_k + 1.0) * (sn_k + 2.0))
+            set sin_val to sin_val + sn_term
+            set sn_k to sn_k + 2.0
+
+routine cos_taylor:
+    (cos(x) = 1 - x^2/2! + x^4/4! - ...)
+    run range_reduce_2pi
+    set cos_val to 1.0
+    Let a number be called cs_term
+    set cs_term to 1.0
+    Let a number be called cs_k
+    set cs_k to 0.0
+    while cs_k is less than 28.0:
+        Structurally:
+            set cs_term to -cs_term * x ^ 2 / ((cs_k + 1.0) * (cs_k + 2.0))
+            set cos_val to cos_val + cs_term
+            set cs_k to cs_k + 2.0
+
+routine tan_taylor:
+    run sin_taylor
+    Let a number be called temp_sin
+    set temp_sin to sin_val
+    run cos_taylor
+    set tan_val to temp_sin / cos_val
+
+routine power:
+    (result = base ^ exponent  (whole exponents are exact; negative ones give 1 / base ^ |exponent|))
+    set result to base ^ exponent
+
+routine float_ln:
+    (natural log. v is scaled into [1,2] by powers of two, then)
+    (ln(v) = 2 * (z + z^3/3 + z^5/5 + ...) with z = (v-1)/(v+1))
+    Let a number be called lg_v
+    set lg_v to log_input
+    Let a number be called lg_k
+    set lg_k to 0.0
+    if lg_v is at most 0.0:
+        set log_val to 0.0
+        divide log_val by log_val
+    else:
+        while lg_v is at least 2.0:
+            divide lg_v by 2.0
+            add 1.0 to lg_k
+            if lg_k is greater than 2000.0:
+                set lg_v to 1.0
+        while lg_v is less than 1.0:
+            multiply lg_v by 2.0
+            subtract 1.0 from lg_k
+            if lg_k is less than -2000.0:
+                set lg_v to 1.0
+        Structurally:
+            Let a number be called lg_z
+            set lg_z to (lg_v - 1.0) / (lg_v + 1.0)
+            Let a number be called lg_z2
+            set lg_z2 to lg_z * lg_z
+        Let a number be called lg_p
+        set lg_p to lg_z
+        Let a number be called lg_n
+        set lg_n to 1.0
+        Let a number be called lg_sum
+        set lg_sum to 0.0
+        while lg_n is less than 40.0:
+            Structurally:
+                set lg_sum to lg_sum + lg_p / lg_n
+                set lg_p to lg_p * lg_z2
+                set lg_n to lg_n + 2.0
+        Structurally:
+            set log_val to lg_k * 0.6931471805599453 + 2.0 * lg_sum
+
+routine float_log10:
+    run float_ln
+    Structurally:
+        set log10_val to log_val / 2.302585092994046

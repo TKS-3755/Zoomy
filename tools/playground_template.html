@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zoomy Playground</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1f;--mut:#6b6b70;--card:#fff;--line:#dcd9d0;--acc:#2b6cb0;--bad:#b42318;--good:#1a7f37;--code:#f3f1ea}
+@media (prefers-color-scheme:dark){:root{--bg:#17181a;--fg:#ececec;--mut:#9a9aa2;--card:#202226;--line:#34363b;--acc:#7fb2ee;--bad:#ff8b7f;--good:#6fd08c;--code:#1b1c1f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0 8px 0 0}.sub{color:var(--mut);font-size:13px}
+button,select{font:inherit;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer}
+button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}button:disabled{opacity:.5;cursor:default}
+main{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px}
+@media (max-width:800px){main{grid-template-columns:1fr}}
+.pane{background:var(--card);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:0}
+.pane h2{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);margin:0;padding:8px 12px;border-bottom:1px solid var(--line)}
+textarea,pre{font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:0;border:0;background:transparent;color:inherit;padding:10px 12px;width:100%}
+#src{min-height:340px;resize:vertical;outline:none;tab-size:4;white-space:pre}
+#stdin{min-height:56px;resize:vertical;border-top:1px solid var(--line);outline:none}
+pre{white-space:pre-wrap;overflow:auto;min-height:120px;max-height:55vh}
+#status{padding:8px 12px;border-top:1px solid var(--line);font-size:13px}
+#status.bad{color:var(--bad)}#status.good{color:var(--good)}
+.tabs{display:flex;border-bottom:1px solid var(--line)}.tabs button{border:0;border-radius:0;background:none;padding:8px 12px;color:var(--mut)}
+.tabs button.on{color:var(--fg);border-bottom:2px solid var(--acc)}
+#fix{margin-left:8px}
+</style></head><body>
+<header><h1>Zoomy Playground</h1><span class="sub">the pseudocode that compiles - everything runs here in your browser</span>
+<span style="flex:1"></span><select id="ex" aria-label="Examples"><option value="">Examples...</option></select>
+<button id="fmt">Format</button><button id="stop" disabled>Stop</button><button id="run" class="primary" disabled>Run</button></header>
+<main>
+<section class="pane"><h2>Your program</h2><textarea id="src" spellcheck="false" aria-label="Zoomy program"></textarea>
+<div id="status">Loading Zoomy...</div>
+<textarea id="stdin" spellcheck="false" placeholder="Input for the program (what 'read' and 'ask' will get), one line per answer"></textarea></section>
+<section class="pane"><div class="tabs"><button data-t="out" class="on">Output</button><button data-t="explain">How it was read</button><button data-t="python">Python</button></div>
+<pre id="view"></pre></section>
+</main>
+<script id="zoomy-sources" type="application/json">__SOURCES__</script>
+<script id="examples-data" type="application/json">__EXAMPLES__</script>
+<script id="worker-src" type="text/plain">
+let py, ready;
+self.onmessage = async (ev) => {
+  const m = ev.data;
+  if (m.kind === "init") {
+    ready = (async () => {
+      importScripts(m.pyodide + "/pyodide.js");
+      py = await loadPyodide({indexURL: m.pyodide + "/"});
+      py.FS.mkdirTree("/zoomy");
+      for (const [name, body] of Object.entries(m.sources)) py.FS.writeFile("/zoomy/" + name, body);
+      py.runPython("import sys; sys.path.insert(0, '/zoomy')\nimport playground_glue");
+    })();
+    try { await ready; self.postMessage({kind: "ready"}); } catch (e) { self.postMessage({kind: "fatal", error: String(e)}); }
+    return;
+  }
+  await ready;
+  py.globals.set("_t", m.text); py.globals.set("_m", m.mode); py.globals.set("_i", m.stdin || "");
+  const r = py.runPython("playground_glue.zoomy_playground(_t, _m, _i)");
+  self.postMessage({kind: "result", id: m.id, mode: m.mode, result: JSON.parse(r)});
+};
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const sources = JSON.parse($("zoomy-sources").textContent);
+const examples = JSON.parse($("examples-data").textContent);
+const workerUrl = () => URL.createObjectURL(new Blob([$("worker-src").textContent], {type: "text/javascript"}));
+let tab = "out", lastRun = "", seq = 0, checkTimer = 0;
+function start() {
+  const w = new Worker(workerUrl()); const ready = new Promise((res, rej) => {
+    w.addEventListener("message", e => { if (e.data.kind === "ready") res(); if (e.data.kind === "fatal") rej(e.data.error); });});
+  w.postMessage({kind: "init", sources, pyodide: new URL("__PYODIDE__", location.href).href}); return {w, ready};
+}
+let tools = start(), runner = start();
+function ask(who, mode, text, stdin) {
+  return who.ready.then(() => new Promise(res => {
+    const id = ++seq;
+    const h = e => { if (e.data.kind === "result" && e.data.id === id) { who.w.removeEventListener("message", h); res(e.data.result); } };
+    who.w.addEventListener("message", h); who.w.postMessage({kind: "go", id, mode, text, stdin});
+  }));
+}
+function setStatus(msg, cls) { const s = $("status"); s.className = cls || ""; s.textContent = msg; }
+function showFix(r) {
+  const line = r.line ? "line " + r.line + ": " : "";
+  setStatus(line + r.error, "bad");
+  if (r.fix && r.line) {
+    const b = document.createElement("button"); b.id = "fix"; b.textContent = "Change to: " + r.fix;
+    b.onclick = () => { const L = $("src").value.split("\n"); const ind = L[r.line - 1].match(/^\s*/)[0]; L[r.line - 1] = ind + r.fix; $("src").value = L.join("\n"); check(); };
+    $("status").appendChild(document.createElement("br")); $("status").appendChild(b);
+  }
+}
+async function check() {
+  const r = await ask(tools, "check", $("src").value);
+  if (r.ok) { setStatus("Reads fine." + (r.out ? " " + r.out.trim() : ""), "good"); } else showFix(r);
+  if (tab !== "out") refreshTab();
+}
+async function refreshTab() {
+  if (tab === "out") { $("view").textContent = lastRun; return; }
+  const r = await ask(tools, tab, $("src").value);
+  $("view").textContent = r.ok ? r.out : (r.line ? "line " + r.line + ": " : "") + r.error;
+}
+async function run() {
+  $("run").disabled = true; $("stop").disabled = false; setStatus("Running...");
+  const r = await ask(runner, "run", $("src").value, $("stdin").value);
+  $("stop").disabled = true; $("run").disabled = false;
+  lastRun = r.out + (r.ok ? "" : (r.out && !r.out.endsWith("\n") ? "\n" : "") + (r.line ? "line " + r.line + ": " : "") + r.error);
+  if (r.ok) setStatus("Finished.", "good"); else if (r.line) showFix(r); else setStatus("The program stopped: " + r.error, "bad");
+  tab = "out"; syncTabs(); $("view").textContent = lastRun || "(the program printed nothing)";
+}
+$("run").onclick = run;
+$("stop").onclick = () => { runner.w.terminate(); runner = start(); $("stop").disabled = true; setStatus("Stopped.");
+  lastRun += (lastRun ? "\n" : "") + "(stopped)"; tab = "out"; syncTabs(); $("view").textContent = lastRun; runner.ready.then(() => $("run").disabled = false); };
+$("fmt").onclick = async () => { const r = await ask(tools, "fmt", $("src").value); if (r.ok) { $("src").value = r.out; check(); } else showFix(r); };
+function syncTabs() { document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === tab)); }
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; syncTabs(); refreshTab(); });
+$("src").addEventListener("input", () => { clearTimeout(checkTimer); checkTimer = setTimeout(check, 400); });
+$("src").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); if (!$("run").disabled) run(); } });
+for (const n of Object.keys(examples)) { const o = document.createElement("option"); o.value = n; o.textContent = n; $("ex").appendChild(o); }
+$("ex").onchange = () => { if ($("ex").value) { $("src").value = examples[$("ex").value]; $("ex").value = ""; check(); } };
+$("src").value = examples["hello"] || "";
+Promise.all([tools.ready, runner.ready]).then(() => { $("run").disabled = false; check(); }, e => setStatus("Zoomy could not start: " + e, "bad"));
+</script></body></html>

@@ -1,0 +1,66 @@
+include nocalc's core
+
+routine sum:
+    set sum_result to 0.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        add temp_val to sum_result
+        add 1.0 to i
+
+routine mean:
+    run sum
+    Structurally:
+        set mean_val to sum_result / size
+
+routine variance:
+    run mean
+    Let a number be called var_sum
+    set var_sum to 0.0
+    Let a number be called i
+    set i to 0.0
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        Structurally:
+            set var_sum to var_sum + (temp_val - mean_val) ^ 2
+        add 1.0 to i
+    Structurally:
+        set var_result to var_sum / size
+
+routine std_dev:
+    run variance
+    Structurally:
+        set std_result to the square root of var_result
+
+routine find_min:
+    Let a number be called i
+    set i to 1.0
+    load from arr at index 0.0 into min_val
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        if temp_val is less than min_val:
+            set min_val to temp_val
+        add 1.0 to i
+
+routine find_max:
+    Let a number be called i
+    set i to 1.0
+    load from arr at index 0.0 into max_val
+    while i is less than size:
+        Let a number be called temp_val
+        load from arr at index i into temp_val
+        if max_val is less than temp_val:
+            set max_val to temp_val
+        add 1.0 to i
+
+routine ptp:
+    run find_min
+    Let a number be called temp_min
+    set temp_min to min_val
+    run find_max
+    Structurally:
+        set ptp_val to max_val - temp_min

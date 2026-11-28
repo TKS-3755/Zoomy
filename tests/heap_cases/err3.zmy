@@ -1,0 +1,4 @@
+Create an array named xs
+set xs to empty list
+print "before"
+print the last of xs

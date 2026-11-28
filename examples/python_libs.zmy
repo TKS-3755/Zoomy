@@ -1,0 +1,23 @@
+(Using Python libraries from Zoomy.)
+use python's math
+use python's statistics
+use python's random as dice
+use python's datetime
+use python's json
+
+Create an array named scores
+set scores to [72, 88, 95, 61, 79]
+print "average: ", call statistics's mean with scores
+print "median:  ", call statistics's median with scores
+print "spread:  ", call statistics's pstdev with scores
+print "hypotenuse of 3,4: ", call math's hypot with 3 and 4
+print "pi to 5 places:    ", rounded math's pi to 5 places
+
+call dice's seed with 42
+print "a dice roll: ", call dice's randint with 1 and 6
+
+Let a value be called today
+set today to call datetime's date's today
+print "this year is at least 2025: ", today's year is at least 2025
+
+print call json's dumps with table with "name" as "Zoe" and "scores" as scores

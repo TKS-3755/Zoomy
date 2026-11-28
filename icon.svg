@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 388" width="660" height="388">
+  <rect x="2" y="2" width="656" height="384" rx="16" fill="#FBFAF7" stroke="#DCD9D0" stroke-width="2"/>
+
+  <!-- 15-line compilable Zoomy Z (3-line top & bottom bars) -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="500">
+    <!-- Top bar (3 lines) -->
+    <text x="30" y="44" fill="#8C8C94" font-style="italic">(  Zoomy 8 : Pseudocode that compiles to ELF  )</text>
+    <text x="30" y="66">
+      <tspan fill="#6B6B70">Now </tspan><tspan fill="#2B6CB0" font-weight="700">from now on</tspan><tspan fill="#1D1D1F">, use </tspan><tspan fill="#2B6CB0">floats</tspan><tspan fill="#1D1D1F"> instead of </tspan><tspan fill="#2B6CB0">integers</tspan>
+    </text>
+    <text x="30" y="88">
+      <tspan fill="#6B6B70">Okay, go ahead and </tspan><tspan fill="#2B6CB0" font-weight="700">Let</tspan><tspan fill="#1D1D1F"> a </tspan><tspan fill="#2B6CB0">number</tspan><tspan fill="#1D1D1F"> be called z </tspan><tspan fill="#6B6B70">and</tspan>
+    </text>
+
+    <!-- Diagonal (9 lines) -->
+    <text x="290" y="110">
+      <tspan fill="#2B6CB0" font-weight="700">set</tspan><tspan fill="#1D1D1F"> z to </tspan><tspan fill="#B45309">69</tspan><tspan fill="#6B6B70"> and</tspan>
+    </text>
+    <text x="257" y="132">
+      <tspan fill="#2B6CB0" font-weight="700">add</tspan><tspan fill="#B45309"> 42</tspan><tspan fill="#1D1D1F"> to z </tspan><tspan fill="#6B6B70">then</tspan>
+    </text>
+    <text x="223" y="154">
+      <tspan fill="#2B6CB0" font-weight="700">bump</tspan><tspan fill="#1D1D1F"> z by </tspan><tspan fill="#B45309">7</tspan><tspan fill="#6B6B70"> then</tspan>
+    </text>
+    <text x="190" y="176">
+      <tspan fill="#2B6CB0" font-weight="700">tack</tspan><tspan fill="#B45309"> 9</tspan><tspan fill="#1D1D1F"> on z </tspan><tspan fill="#6B6B70">then</tspan>
+    </text>
+    <text x="173" y="198">
+      <tspan fill="#2B6CB0" font-weight="700">double</tspan><tspan fill="#1D1D1F"> z </tspan><tspan fill="#6B6B70">then</tspan>
+    </text>
+    <text x="148" y="220">
+      <tspan fill="#2B6CB0" font-weight="700">halve</tspan><tspan fill="#1D1D1F"> z </tspan><tspan fill="#6B6B70">then</tspan>
+    </text>
+    <text x="114" y="242">
+      <tspan fill="#2B6CB0" font-weight="700">triple</tspan><tspan fill="#1D1D1F"> z </tspan><tspan fill="#6B6B70">then</tspan>
+    </text>
+    <text x="64" y="264">
+      <tspan fill="#2B6CB0" font-weight="700">reduce</tspan><tspan fill="#1D1D1F"> z by </tspan><tspan fill="#B45309">5</tspan><tspan fill="#6B6B70"> then</tspan>
+    </text>
+    <text x="38" y="286">
+      <tspan fill="#2B6CB0" font-weight="700">scale</tspan><tspan fill="#1D1D1F"> z by </tspan><tspan fill="#B45309">911</tspan><tspan fill="#6B6B70"> then</tspan>
+    </text>
+
+    <!-- Bottom bar (3 lines) -->
+    <text x="30" y="308">
+      <tspan fill="#2B6CB0" font-weight="700">divide</tspan><tspan fill="#1D1D1F"> z by </tspan><tspan fill="#B45309">420</tspan><tspan fill="#6B6B70">, and </tspan><tspan fill="#2B6CB0" font-weight="700">print</tspan><tspan fill="#1A7F37"> "Have </tspan><tspan fill="#2B6CB0">{z}</tspan><tspan fill="#1A7F37"> Good Days"</tspan>
+    </text>
+    <text x="30" y="330">
+      <tspan fill="#6B6B70">Please, we must </tspan><tspan fill="#2B6CB0" font-weight="700">make sure</tspan><tspan fill="#1D1D1F"> that z is above </tspan><tspan fill="#B45309">zero</tspan><tspan fill="#1D1D1F">.</tspan>
+    </text>
+    <text x="30" y="352">
+      <tspan fill="#6B6B70">I would like you to </tspan><tspan fill="#2B6CB0" font-weight="700">conclude</tspan><tspan fill="#1D1D1F"> the program with </tspan><tspan fill="#B45309">0</tspan>
+    </text>
+  </g>
+
+  <line x1="456" y1="32" x2="456" y2="356" stroke="#DCD9D0" stroke-width="1.5"/>
+
+  <!-- Wordmark -->
+  <text x="480" y="190" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="38" font-weight="700" letter-spacing="-0.5" fill="#1D1D1F">zoomy</text>
+  <text x="480" y="218" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13.5" fill="#6B6B70">Pseudocode that compiles.</text>
+</svg>

@@ -1,0 +1,93 @@
+( ========================================================================= )
+(  LESSON: HOW COMPUTERS LEARN (SIMPLE LINEAR REGRESSION)                   )
+(  Goal: Teach a computer to predict an exam score based on study hours.   )
+(  Everything is explained right here inside the Zoomy 5 code comments.    )
+( ========================================================================= )
+
+( STEP 1: GATHER OUR PAST DATA )
+( We make an array that will hold the past students, one record (a table) per student. )
+Create an array of tables named past_student_records
+( Each record has the hours studied and the score earned: )
+append table with "hours" as 1.0 and "score" as 2.0 to past_student_records    ( First student: studied 1 hour, scored 2 )
+append table with "hours" as 2.0 and "score" as 4.0 to past_student_records    ( Second student: studied 2 hours, scored 4 )
+append table with "hours" as 3.0 and "score" as 5.0 to past_student_records    ( Third student: studied 3 hours, scored 5 )
+append table with "hours" as 4.0 and "score" as 4.0 to past_student_records    ( Fourth student: studied 4 hours, scored 4 )
+append table with "hours" as 5.0 and "score" as 7.0 to past_student_records    ( Fifth student: studied 5 hours, scored 7 )
+
+( STEP 2: START WITH A BLIND GUESS )
+( A prediction line is built from a "weight" (slope) and a "bias" (intercept). )
+( Since we know nothing yet, we start both at zero. )
+Let a number be called weight    ( Declare a numeric variable to hold the slope of our prediction line )
+Let a number be called bias    ( Declare a numeric variable to hold the intercept of our prediction line )
+set weight to 0.0    ( Initialize the slope to zero because we have no knowledge yet )
+set bias to 0.0    ( Initialize the intercept to zero for the same reason )
+
+( STEP 3: SET OUR LEARNING SPEED )
+( Learning rate controls how big of a correction step the computer takes. )
+Let a number be called learning_rate    ( Declare a numeric variable to control the size of each training step )
+set learning_rate to 0.01    ( Use a small learning rate so training converges smoothly )
+
+( We will let the computer practice this 300 times )
+Let a number be called practice_rounds    ( Declare a numeric variable for the number of training iterations )
+set practice_rounds to 300    ( Train for 300 rounds to give the model enough practice )
+
+Let a number be called total_students    ( Declare a numeric variable to store how many records we have )
+set total_students to length of past_student_records    ( Compute the number of student records for averaging later )
+
+print "Teaching the computer..."    ( Print a message so the user knows training is starting )
+
+( STEP 4: THE PRACTICE LOOP )
+for round from 1 to practice_rounds:    ( Repeat the training process 300 times )
+
+    ( Reset our score adjustments for this round )
+    Let a number be called change_weight    ( Declare a numeric variable to accumulate weight adjustments this round )
+    Let a number be called change_bias    ( Declare a numeric variable to accumulate bias adjustments this round )
+    set change_weight to 0.0    ( Reset the weight adjustment accumulator to zero )
+    set change_bias to 0.0    ( Reset the bias adjustment accumulator to zero )
+
+    ( Check every single student record )
+    for each student in past_student_records:        ( Loop through every student record in the dataset )
+        Let a number be called h        ( Declare a numeric variable for the student's study hours )
+        Let a number be called real_score        ( Declare a numeric variable for the student's actual score )
+        Let a number be called my_guess        ( Declare a numeric variable for our predicted score )
+        Let a number be called error        ( Declare a numeric variable for the prediction error )
+
+        set h to student at "hours"        ( Extract the study hours from the current record )
+        set real_score to student at "score"        ( Extract the actual score from the current record )
+
+        ( Predict the score using our current formula: Score = Weight * Hours + Bias )
+        Structurally:            ( Begin a structurally indented block for the prediction and error steps )
+            set my_guess to (weight * h) + bias            ( Compute the predicted score using the current weight and bias )
+            
+            ( Find the mistake: How far off was our guess? )
+            set error to my_guess - real_score            ( Calculate the difference between prediction and actual score )
+
+            ( Accumulate how much we need to adjust weight and bias )
+            set change_weight to change_weight + (error * h)           ( Add this record's weighted error contribution to the weight accumulator )
+            set change_bias to change_bias + error            ( Add this record's error contribution to the bias accumulator )
+
+    ( Average out the adjustments and update our formula )
+    Structurally:        ( Begin a another structurally indented block for averaging and updating parameters )
+        set change_weight to change_weight / total_students    ( Average the accumulated weight adjustment across all students )
+        set change_bias to change_bias / total_students        ( Average the accumulated bias adjustment across all students )
+
+        ( Take a small step backward away from the error )
+        set weight to weight - (learning_rate * change_weight)        ( Update the weight by stepping opposite the gradient )
+        set bias to bias - (learning_rate * change_bias)        ( Update the bias by stepping opposite the gradient )
+
+( STEP 5: TEST THE TRAINED COMPUTER )
+print "Training finished!"    ( Announce that the training loop has completed )
+print "The computer learned a weight of: ", format weight with 4 decimals    ( Display the learned slope rounded to four decimal places )
+print "The computer learned a bias of: ", format bias with 4 decimals    ( Display the learned intercept rounded to four decimal places )
+
+( Now let's predict what score a student will get if they study 6.0 hours )
+Let a number be called study_time    ( Declare a numeric variable for the hours we want to predict for )
+set study_time to 6.0    ( Set the test study time to six hours )
+
+Let a number be called final_prediction    ( Declare a numeric variable to hold the final predicted score )
+Structurally:    ( Begin a structurally indented block for computing the final prediction )
+    set final_prediction to (weight * study_time) + bias    ( Apply the learned formula to the new study time )
+
+print "If you study {study_time} hours, the computer predicts you will score: ", format final_prediction with 2 decimals    ( Print the final prediction rounded to two decimal places )
+
+finish with 0.0    ( End the program and return zero as the exit status )

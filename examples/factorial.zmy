@@ -1,0 +1,17 @@
+(Routines are real calls, so recursion works. Variables are global,)
+(so recurse "tail style": do the multiplying before the recursive call.)
+(Variables shared by the whole program)
+Let a number be called acc
+Let a number be called n
+
+routine fact:
+    if n is greater than 1.0:
+        multiply acc by n
+        subtract 1.0 from n
+        run fact
+
+action start:
+    set n to 10.0
+    set acc to 1.0
+    run fact
+    print "10! = ", acc

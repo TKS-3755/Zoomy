@@ -1,0 +1,48 @@
+(Guess the number: the computer picks any number from a defined upper and lower bound, and you'll have to guess it, you have a predefined number of tries.)
+(Hints say higher or lower. Type "quit" to give up.)
+Let a number be called minimum_number
+set minimum_number to 1
+Let a number be called maximum_number
+set maximum_number to 100
+Let a number be called maximum_tries
+set maximum_tries to 10
+
+Let a value be called secret
+set secret to random between minimum_number and maximum_number
+Let a number be called tries
+set tries to 0
+Let a flag be called won
+set won to no
+Let a flag be called quit_early
+set quit_early to no
+
+print "I am thinking of a number from {minimum_number} to {maximum_number}."
+print "You have {maximum_tries} tries."
+
+while tries is less than maximum_tries and not won and not quit_early:
+    Let a string be called line
+    set line to ask "Guess {tries + 1}: "
+    if input_ok is 0 or trim of lowercase of line is "quit":
+        set quit_early to yes
+    else:
+        try:
+            Let a number be called guess
+            set guess to number from trim of line
+            check that guess is at least minimum_number
+            check that guess is at most maximum_number
+            add 1 to tries
+            if guess is secret:
+                set won to yes
+            else if guess is less than secret:
+                print "Higher!"
+            else:
+                print "Lower!"
+        if it fails:
+            print "Please type a whole number from {minimum_number} to {maximum_number} (or quit)."
+
+if won:
+    print "Correct! You got it in {tries} tries."
+else if quit_early:
+    print "Giving up? The number was {secret}."
+else:
+    print "Out of tries. The number was {secret}."

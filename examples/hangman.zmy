@@ -1,0 +1,361 @@
+(A hangman game with categories, hints, scoring, and a save file.)
+(The computer picks a category and a word; you guess one letter at a time.)
+(This program showcases nearly every Zoomy 5 feature.)
+
+use python's math as pymath
+
+(--- Constants and the word bank --------------------------------------)
+
+Let a number be called max_lives
+set max_lives to 6
+
+Let a number be called score
+set score to 0
+
+(A category is a pair: its name, then its list of words.)
+Create an array named categories
+set categories to empty list
+append a pair "animals", ["tiger", "zebra", "otter", "eagle", "shark", "whale", "camel", "moose"] to categories
+append a pair "fruits", ["apple", "mango", "lemon", "grape", "peach", "berry", "melon"] to categories
+append a pair "colors", ["red", "blue", "green", "amber", "olive", "ivory", "coral"] to categories
+append a pair "planets", ["mercury", "mars", "venus", "earth", "jupiter", "saturn", "uranus", "neptune", "dimidium", "dagon", "tadmor", "drukyul", "meztli", "lich", "hypatia"] to categories
+
+(--- Helpers ----------------------------------------------------------)
+
+(The word being guessed and the letters guessed so far: made here, before the helpers that use them.)
+Let a string be called secret
+Create an array named guessed
+Let a table be called stats
+
+(Stop with a message unless the condition holds.)
+define require with condition and message:
+    if not condition:
+        fail with message
+
+(Show the board: a row of letters or dashes.)
+define show_board:
+    Let a string be called row
+    set row to ""
+    for each letter in secret:
+        if guessed contains letter:
+            set row to row + letter + " "
+        else:
+            set row to row + "_ "
+    print row
+
+(Show the letters guessed so far, sorted.)
+define show_guessed:
+    if guessed are empty:
+        print "(nothing guessed yet)"
+    else:
+        Create an array named sorted_guessed
+        set sorted_guessed to sorted of guessed
+        print "Guessed: " + (join sorted_guessed with " ")
+
+(Show the running stats. A routine shares the program's variables.)
+routine show_stats:
+    print "Games played: {stats's played}"
+    print "Games won: {stats's won}"
+    print "Current streak: {stats's streak}"
+    print "Best score: {stats's best}"
+
+(--- Load saved stats --------------------------------------------------)
+
+set stats to table with "played" as 0 and "won" as 0 and "streak" as 0 and "best" as 0
+
+Let a string be called save_file
+set save_file to "hangman_save.txt"
+
+Let a string be called saved_text
+if file save_file exists:
+    try:
+        read file save_file into saved_text
+        Create an array named parts
+        set parts to split saved_text by ","
+        if length of parts is 4:
+            set stats at "played" to number from item 0 of parts
+            set stats at "won" to number from item 1 of parts
+            set stats at "streak" to number from item 2 of parts
+            set stats at "best" to number from item 3 of parts
+            print "Welcome back. Best score so far: {stats's best}."
+    if it fails as problem:
+        print "Could not read saved stats: {problem}"
+else:
+    print "No saved stats. Starting fresh."
+
+(--- Validate the setup, then pick a word -------------------------------)
+
+try:
+    call require with (length of categories is bigger than 0) and "No categories loaded."
+    call require with (length of categories is bigger than 2) and "Add more categories, please."
+if it fails as problem:
+    print "Setup failed: {problem}"
+    finish with 1
+
+Let a pair be called chosen
+set chosen to item (floor of (random number * length of categories)) of categories
+
+Let a string be called category
+set category to first of the chosen
+
+Create an array named word_choices
+set word_choices to second of the chosen
+
+set secret to item (floor of (random number * length of word_choices)) of word_choices
+set secret to lowercase of secret
+
+Let a number be called word_length
+set word_length to length of secret
+
+set guessed to empty list
+
+Let a value be called hint
+set hint to nothing
+if word_length is over 5:
+    set hint to "Try a vowel."
+else if word_length is between 3 and 5:
+    set hint to "It is a short word."
+
+(--- A tiny warm-up: a few expressions --------------------------------)
+
+Let a number be called n
+set n to 144
+Let a number be called root
+calculate the square root of n and store the result in root
+Let a number be called rounded_pi
+set rounded_pi to rounded pi to 4 places
+print "sqrt({n}) = {root}, pi ~ {rounded_pi}"
+
+Let a number be called digit
+convert the character '7' to a number and store the result in digit
+Let a string be called ascii
+convert the number 101 to ASCII and store the result in ascii
+print "Digit 7 = {digit}, ASCII 101 = '{ascii}'"
+print char 65
+print ""
+
+(--- Difficulty -------------------------------------------------------)
+
+Let a number be called difficulty
+set difficulty to 2
+Let a string be called diff_str
+set diff_str to ask "Difficulty (1 = easy, 2 = normal, 3 = hard) [2]: "
+if trim of diff_str is not "":
+    try:
+        Let a number be called parsed_diff
+        set parsed_diff to number from trim of diff_str
+        if parsed_diff is at least 1 and parsed_diff is at most 3:
+            set difficulty to parsed_diff
+        else:
+            print "Invalid choice; using 2."
+    if it fails:
+        print "Invalid choice; using 2."
+
+Let a number be called lives
+set lives to max_lives - difficulty + 1
+
+(--- The game loop ----------------------------------------------------)
+
+Let a flag be called won
+set won to no
+
+Let a flag be called quit_early
+set quit_early to no
+
+Let a number be called started
+set started to current time
+
+print ""
+print "Category: {category}"
+print "The word has {word_length} letters. You have {lives} lives."
+if hint is not nothing:
+    print "Hint: {hint}"
+show_board()
+
+until lives is 0 or won or quit_early:
+    print ""
+    show_guessed()
+
+    (Ask for a letter, retrying on bad input.)
+    Let a flag be called valid_turn
+    set valid_turn to no
+    Let a string be called letter
+    set letter to ""
+
+    while not valid_turn:
+        Let a string be called line
+        set line to ask "Guess a letter (or 'quit'): "
+        if input_ok is 0:
+            set quit_early to yes
+            set valid_turn to yes
+        else:
+            set line to trim of lowercase of line
+            if line is "quit":
+                set quit_early to yes
+                set valid_turn to yes
+            else if length of line is 1:
+                set letter to line
+                set valid_turn to yes
+            else:
+                print "Please type a single letter."
+
+    if quit_early:
+        stop
+
+    if letter is in guessed:
+        print "You already guessed '{letter}'."
+        skip
+
+    append letter to guessed
+
+    if secret contains letter:
+        print "Good! '{letter}' is in the word."
+    else:
+        set lives to lives - 1
+        if lives is no more than 1:
+            print "Sorry, '{letter}' is not there. Last chance!"
+        else:
+            print "Sorry, '{letter}' is not there. {lives} lives left."
+
+    (Win check: every letter revealed.)
+    set won to yes
+    for each letter in secret:
+        if guessed contains letter:
+            skip
+        set won to no
+        stop
+
+    show_board()
+
+(--- Scoring ---------------------------------------------------------)
+
+wait 0.3 seconds
+
+if quit_early:
+    print ""
+    print "Giving up? The word was '{secret}'."
+else if won:
+    Let a number be called points
+    Structurally,
+        set points to ((lives * 10) + (word_length * 2)) * difficulty
+        set score to score + points
+    print ""
+    print "You won! The word was '{secret}'."
+    print "Points this round: {points}"
+else:
+    print ""
+    print "Out of lives. The word was '{secret}'."
+
+print "Total score: {score}"
+print "The game took {rounded (current time - started) to 1 place} seconds."
+
+(--- Save the score --------------------------------------------------)
+
+if not quit_early:
+    Let a string be called answer
+    set answer to ask "Save? (yes / no / delete): "
+    set answer to lowercase of trim of answer
+
+    if answer is "delete":
+        try:
+            delete file save_file
+            print "Save deleted."
+        if it fails as problem:
+            print "Could not delete: {problem}"
+    else if answer is "yes" or answer is "y":
+        set stats at "played" to stats at "played" + 1
+        if won:
+            set stats at "won" to stats at "won" + 1
+            set stats at "streak" to stats at "streak" + 1
+            if stats at "streak" is bigger than stats at "best":
+                set stats at "best" to stats at "streak"
+        else:
+            set stats at "streak" to 0
+        if score is bigger than stats at "best":
+            set stats at "best" to score
+        try:
+            Create an array named save_parts
+            set save_parts to empty list
+            append text of stats at "played" to save_parts
+            append text of stats at "won" to save_parts
+            append text of stats at "streak" to save_parts
+            append text of stats at "best" to save_parts
+            Let a string be called save_line
+            set save_line to join save_parts with ","
+            write save_line to file save_file
+            print "Saved."
+        if it fails as problem:
+            print "Could not save: {problem}"
+
+(--- A small tour of the language, for fun ---------------------------)
+
+print ""
+print "A quick tour of some expressions:"
+
+(A list, sorted, inserted into, removed from, and reversed.)
+Create an array named demo
+set demo to [3, 1, 2]
+sort demo
+insert 0 into demo at 0
+remove item at 3 from demo
+reverse demo
+print "  demo = {demo}"
+
+(B: A Structurally block uses textbook precedence: (10 + 5) * 2.)
+Let a number be called power_demo
+Structurally,
+    set power_demo to 10 + 5 * 2
+print "  10 + 5 * 2 structurally = {power_demo}"
+
+(C: The default mode is left to right, like a recipe: (10 + 5) * 2.)
+Let a number be called linear_demo
+set linear_demo to 10 + 5 * 2
+print "  10 + 5 * 2 conversationally = {linear_demo}"
+
+(D: An old-style Simply block, for comparison.)
+Simply,
+    set old_total to 0
+    for old_i from 1 to 3:
+        add old_i to old_total
+    print "  old-style total = " + text of old_total
+
+(E: A quad (a fixed group of four) and its parts.)
+Let a quad be called player
+set player to a quad score, lives, word_length, difficulty
+print "  score = {first of player}, lives = {second of player}"
+
+(F: Remainder, powers, and a Python library.)
+Let a number be called r
+set r to remainder of word_length divided by 2
+Let a number be called sq
+set sq to word_length to the power of 2
+Let a number be called lg
+set lg to pymath's log(score + 1)
+print "  word_length mod 2 = {r}, word_length^2 = {sq}, log(score+1) = {rounded lg to 2 places}"
+
+(G: Keys and values of a table.)
+Let a table be called summary
+set summary to table with "games" as stats at "played" and "last_score" as score and "category" as category
+for each key in keys of summary:
+    print "  {key} = {summary at key}"
+
+(H: Count and position in a list.)
+Let a number be called how_many
+set how_many to count of "g" in secret
+Let a number be called where
+set where to position of "g" in secret
+if how_many is bigger than 0:
+    print "  'g' appears {how_many} time(s), first at position {where}."
+
+(I: Command-line arguments.)
+if length of arguments is bigger than 0:
+    print "  arguments = {arguments}"
+else:
+    print "  (no command-line arguments)"
+
+(--- Finale ---------------------------------------------------------)
+
+print ""
+run show_stats
+
+finish with 0

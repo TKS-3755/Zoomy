@@ -1,0 +1,41 @@
+(--- nodoom/map.zmy : Flat 16x16 WAD Sector Grid ---)
+
+include nodoom's core
+
+routine load_wad_map:
+    (Initialize border walls and internal obstacles)
+    Let a number be called my
+    set my to 0.0
+    while my is less than 16.0:
+        Let a number be called mx
+        set mx to 0.0
+        while mx is less than 16.0:
+            Structurally:
+                Let a number be called map_idx
+                set map_idx to my * 16.0 + mx
+            Let a number be called is_wall
+            set is_wall to 0.0
+
+            (Outer boundary walls)
+            if mx is 0.0:
+                set is_wall to 1.0
+            if mx is 15.0:
+                set is_wall to 1.0
+            if my is 0.0:
+                set is_wall to 1.0
+            if my is 15.0:
+                set is_wall to 1.0
+
+            (Internal E1M1-style pillars & corridors)
+            if mx is 5.0:
+                if my is at least 4.0:
+                    if my is at most 10.0:
+                        set is_wall to 1.0
+            if mx is 10.0:
+                if my is at least 6.0:
+                    if my is at most 12.0:
+                        set is_wall to 1.0
+
+            store is_wall in wad_map at index map_idx
+            add 1.0 to mx
+        add 1.0 to my

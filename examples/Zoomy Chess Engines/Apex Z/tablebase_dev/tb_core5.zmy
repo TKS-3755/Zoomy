@@ -1,0 +1,233 @@
+
+(Directories - tb_dirs holds the path text  - character codes, 0 at the end, several directories are)
+(separated by a colon.  Call tb_set_dirs once the text is in tb_dirs.)
+routine tb_set_dirs:
+    Let a number be called i
+    Let a number be called c
+    set tb_dirn to 0
+    set i to 0
+    set c to item 0 of tb_dirs
+    if c is not 0:
+        set item 0 of tb_dstart to 0
+        set tb_dirn to 1
+    while c is not 0 and i is less than 510:
+        if c is 58:
+            if item (i + 1) of tb_dirs is not 0 and tb_dirn is less than 15:
+                set item tb_dirn of tb_dstart to i + 1
+                add 1 to tb_dirn
+        add 1 to i
+        set c to item i of tb_dirs
+    (forget everything that was cached for an old path)
+    for w from 0 to 63:
+        set item ((w * 2) + 0) of tb_ctl to 0
+        set item ((w * 2) + 1) of tb_ctl to 0
+        for e from 0 to 63:
+            set item (((w * 64) + e) * 64) of tb_meta to 0
+
+(Position in tb_brd  - 64 squares, a1 = 0 - 0 empty, 1..6 white P N B R Q K, 9..14 black and tb_turn)
+(0 white / 1 black to move.  Gives back the raw table value  - WDL - -2..2 for the side to move, DTZ)
+(as stored or -1000 when the position has no table, or the DTZ table is for the other side.)
+define tb_probe with ty and s:
+    Let a number be called sq
+    Let a number be called c
+    Let a number be called k
+    Let a number be called key
+    Let a number be called key2
+    Let a number be called wb
+    Let a number be called mb
+    Let a number be called e
+    Let a number be called slot
+    Let a number be called tries
+    Let a number be called flip
+    Let a number be called bside
+    Let a number be called numt
+    Let a number be called t
+    Let a number be called eb
+    Let a number be called i
+    Let a number be called mir
+    Let a number be called pc
+    Let a number be called col
+    Let a number be called code
+    Let a number be called pr
+    Let a number be called idx
+    Let a number be called w
+    Let a number be called v
+    Let a number be called fl
+    Let a number be called tmp
+    Let a number be called di
+    Let a number be called mp
+    Let a number be called n0
+    Let a number be called swp
+    Let a number be called found
+    if tb_wid is at least 64:
+        give back -1000
+    for c from 0 to 15:
+        set item c of tb_cnt to 0
+    for sq from 0 to 63:
+        set c to item sq of tb_brd
+        if c is not 0:
+            set k to item c of tb_cnt
+            if k is at least 7:
+                give back -1000
+            set item ((c * 8) + k) of tb_psq to sq
+            set item c of tb_cnt to k + 1
+    set key to 0
+    for c from 1 to 6:
+        set key to (key * 16) + item c of tb_cnt
+    for c from 9 to 14:
+        set key to (key * 16) + item c of tb_cnt
+    set key2 to key * 2
+    if ty is 2:
+        add 1 to key2
+    (cache bookkeeping - flush when the slice of this worker is nearly full)
+    if item ((tb_wid * 2) + 0) of tb_ctl is greater than 150000 or item ((tb_wid * 2) + 1) of tb_ctl is at least 48:
+        set item ((tb_wid * 2) + 0) of tb_ctl to 0
+        set item ((tb_wid * 2) + 1) of tb_ctl to 0
+        for e from 0 to 63:
+            set item (((tb_wid * 64) + e) * 64) of tb_meta to 0
+    set wb to tb_wid * 64
+    set e to key2 mod 61
+    set tries to 0
+    set mb to -1
+    while tries is less than 64 and mb is -1:
+        set slot to ((wb + e) * 64)
+        if item slot of tb_meta is key2 + 1:
+            set mb to slot
+        else if item slot of tb_meta is 0:
+            set mb to 0 - slot - 2
+        else:
+            set e to (e + 1) mod 64
+            add 1 to tries
+    if mb is -1 or tries is 64:
+        give back -1000
+    if mb is less than -1:
+        (not cached yet: load the header)
+        set mb to 0 - mb - 2
+        add 1 to item ((tb_wid * 2) + 1) of tb_ctl
+        set found to tb_load(key2, ty, mb)
+        if found is 0:
+            close the file
+            set item (mb + 1) of tb_meta to 0
+            give back -1000
+    else:
+        if item (mb + 1) of tb_meta is 0:
+            give back -1000
+        set flip to item (mb + 11) of tb_meta
+        call tb_name with flip and ty and (item (mb + 12) of tb_meta)
+        open the file named by tb_fn for reading
+        if input_ok is 0:
+            give back -1000
+    set tb_num to item (mb + 3) of tb_meta
+    set tb_haspawns to item (mb + 4) of tb_meta
+    set tb_kkenc to item (mb + 6) of tb_meta
+    set tb_p0 to item (mb + 7) of tb_meta
+    set tb_p1 to item (mb + 8) of tb_meta
+    set numt to item (mb + 10) of tb_meta
+    set eb to item (mb + 34) of tb_meta
+    set flip to item (mb + 11) of tb_meta
+    if item (mb + 5) of tb_meta is 1:
+        set flip to tb_turn
+        set bside to 0
+    else:
+        set bside to flip
+        if tb_turn is 1:
+            set bside to 1 - flip
+    set mir to 0
+    if tb_haspawns is 1 and flip is 1:
+        set mir to 56
+    set fl to 0
+    set t to 0
+    set i to 0
+    if tb_haspawns is 0:
+        if ty is 2:
+            set fl to item (mb + 14) of tb_meta
+            if (fl mod 2) is not bside and item (mb + 5) of tb_meta is 0:
+                close the file
+                give back -1001
+        else:
+            add 24 * bside to eb
+        while i is less than tb_num:
+            set pc to item (eb + i) of tb_pool
+            set col to pc / 8
+            if flip is 1:
+                set col to 1 - col
+            set code to (pc mod 8) + (8 * col)
+            set k to item code of tb_cnt
+            if k is 0:
+                close the file
+                give back -1000
+            for j from 0 to k - 1:
+                set item (i + j) of tb_p to item ((code * 8) + j) of tb_psq
+            add k to i
+        set idx to tb_encode(eb, 0)
+    else:
+        (the leading pawns come first, from the first piece order)
+        while i is less than tb_p0:
+            set pc to item (eb + i) of tb_pool
+            set col to pc / 8
+            if flip is 1:
+                set col to 1 - col
+            set code to (pc mod 8) + (8 * col)
+            set k to item code of tb_cnt
+            if k is 0:
+                close the file
+                give back -1000
+            for j from 0 to k - 1:
+                set tmp to item ((code * 8) + j) of tb_psq
+                bitwise xor tmp with mir
+                set item (i + j) of tb_p to tmp
+            add k to i
+        for k from 1 to tb_p0 - 1:
+            if item (item 0 of tb_p) of tb_flap is greater than item (item k of tb_p) of tb_flap:
+                set swp to item 0 of tb_p
+                set item 0 of tb_p to item k of tb_p
+                set item k of tb_p to swp
+        set t to (item 0 of tb_p) mod 8
+        if t is greater than 3:
+            set t to 7 - t
+        if ty is 2:
+            set fl to item (mb + 14 + t) of tb_meta
+            if (fl mod 2) is not bside and item (mb + 5) of tb_meta is 0:
+                close the file
+                give back -1001
+            set eb to eb + (24 * t)
+        else:
+            set eb to eb + (24 * (t + (numt * bside)))
+        while i is less than tb_num:
+            set pc to item (eb + i) of tb_pool
+            set col to pc / 8
+            if flip is 1:
+                set col to 1 - col
+            set code to (pc mod 8) + (8 * col)
+            set k to item code of tb_cnt
+            if k is 0:
+                close the file
+                give back -1000
+            for j from 0 to k - 1:
+                set tmp to item ((code * 8) + j) of tb_psq
+                bitwise xor tmp with mir
+                set item (i + j) of tb_p to tmp
+            add k to i
+        set idx to tb_encode(eb, 1)
+    set pr to item (eb + 21) of tb_pool
+    set w to tb_decode(pr, idx)
+    if ty is 0:
+        close the file
+        give back (w mod 256) - 2
+    set v to (w mod 256) + (((w / 256) mod 16) * 256)
+    if (fl / 2) mod 2 is 1:
+        set mp to item (mb + 13) of tb_meta
+        set n0 to item (s + 2) of tb_wdl2map
+        if (fl / 16) mod 2 is 0:
+            set v to tb_at8(mp + item (mb + 18 + (4 * t) + n0) of tb_meta + v)
+        else:
+            set v to tb_at16(mp + (2 * (item (mb + 18 + (4 * t) + n0) of tb_meta + v)))
+    set tmp to 0
+    if item (s + 2) of tb_paflags is 8:
+        set tmp to (fl / 8) mod 2
+    if item (s + 2) of tb_paflags is 4:
+        set tmp to (fl / 4) mod 2
+    if tmp is 0 or (s mod 2) is not 0:
+        set v to v * 2
+    close the file
+    give back v

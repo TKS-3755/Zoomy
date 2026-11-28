@@ -1,0 +1,17 @@
+(Count the words in a sentence with a table.)
+Let a string be called sentence
+set sentence to "the quick brown fox jumps over the lazy dog the end"
+Let a table be called counts
+set counts to empty table
+for each word in split sentence by " ":
+    if counts contains word:
+        add 1 to counts at word
+    else:
+        put 1 in counts at word
+
+Let a value be called words
+set words to keys of counts
+sort words
+for each word in words:
+    print word, ": ", counts at word
+print "Most common word appears ", largest of values of counts, " times."
